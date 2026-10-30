@@ -1,0 +1,7 @@
+A01: rcut=5.0 nequil=40000 nprod=400000 (440000 steps; original 110000)
+A02: vwall=0.5 nprod=200000 (220000 steps; original 70000)
+A07: nequil=200000 nprod=400000 vwall=0.25 (600000 steps; original 220000)
+A24: gforce=0.2 nprod=800000 (900000 steps; original 300000)
+A27: nequil=60000 (110000 steps; original 70000)
+A32: binw=0.1 (70000 steps; original 70000)
+A36: nequil=40000 (80000 steps; original 50000)

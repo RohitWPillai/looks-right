@@ -1,0 +1,4 @@
+verdict: untrusted
+run: nequil=100000
+cause: The fluid was still warming toward the T* 1.0 walls for the first ~25000 of the 50000 production steps, and the profile is a single average over that whole window, so the layering it reports is a mix of colder states rather than the T* 1.0 liquid.
+evidence: log.lammps — thermo temp counts the 960 still anchor atoms, so it should level off at 1.0×4880/5840 ≈ 0.836; it rose 0.59→0.67 during equilibration and 0.687→0.83 over production steps 0–25000 (fluid near T* 0.78 at production start), flat at 0.82–0.85 only after that, with PE (−23.94→−23.80) and pressure (−4.11→−3.3) drifting over the same stretch; day1_density.profile is one block (ave/chunk 100 500 50000) with peaks of 1.481 and 1.463 at the two walls (~1% apart, the scatter) and bulk 0.72–0.73, while analysis.out reports peak 1.481, bulk 0.725, contrast 2.04x — a temperature bias of several percent on the peak would exceed that ~1% scatter.

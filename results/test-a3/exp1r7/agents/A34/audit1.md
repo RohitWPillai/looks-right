@@ -1,0 +1,4 @@
+verdict: untrusted
+run: none
+cause: The shear stress leaves out the kinetic term (`stress/atom NULL pair`, so only the pair virial is summed). At this density (about 0.72) that term is roughly 10% of p_xz, and the hard-coded effective height of 18.918 against the 17.81 gap lowers |p_xz| by another 5.9%, so η≈1.19 comes out low by more than its roughly 3–4% scatter. The fluid also ran at about 1.09, not 1.0, and no `index` variable can fix the stress definition.
+evidence: viscosity.in:49 (`stress/atom NULL pair`) and :56 (Vf=lx·ly·18.918 vs Lz−2·wall_th=17.81 from day1_params.txt); analysis.out gives γ=0.0546 (R²=0.999), p_xz=−0.0652, η≈1.194; day1_stress.dat has 500 samples, σ≈0.05, standard error ≈0.0022 (≈3.4%); day1_vx/KEz.profile give about 108 atoms per 150σ³ bin (ρ≈0.72) and T(z)=(2/3)(ke−½vx²)≈1.08–1.11; log.lammps shows the global temperature still rising from 0.86 to 0.97 over the first 20000 production steps.

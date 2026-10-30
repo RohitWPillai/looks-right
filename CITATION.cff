@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this test bed, please cite it as below."
+title: "Looks Right: Polywater, an open test of whether AI agents can tell trustworthy molecular dynamics results from untrustworthy ones"
+version: 0.2.0
+date-released: 2026-10-31
+authors:
+  - family-names: Pillai
+    given-names: Rohit
+    affiliation: University of Edinburgh
+repository-code: "https://github.com/RohitWPillai/looks-right"
+url: "https://rohitwpillai.github.io"
+license:
+  - MIT
+  - CC-BY-4.0
+keywords:
+  - AI agents
+  - molecular dynamics
+  - evaluation
+  - scientific judgement
+  - LAMMPS

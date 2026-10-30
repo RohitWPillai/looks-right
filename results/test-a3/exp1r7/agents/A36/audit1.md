@@ -1,0 +1,4 @@
+verdict: untrusted
+run: nequil=80000
+cause: The run was launched with `-var nequil 10000`, a quarter of the input's own 40000, so it was not at steady state: the cold wall took up almost no heat for the first quarter of production, which biases both J and the temperature jumps, so neither G is a steady-state value.
+evidence: command.txt overrides nequil to 10000, while conductance.in sets 40000. analysis.out shows 53.3% heat imbalance (16.57 heat in vs 7.74 heat out per unit time) and cumulative-heat fit R² 0.986 / 0.889; it reports G_bot=0.302, G_top=0.536. In day1_heat.dat, f_btop goes from 0 to -6.8 by step 10000, then +262, +842 and +1465 at steps 20000, 30000 and 40000. f_bbot rises about 718, 727 and 755 per 10000 steps over the same stretch, so a ~20% imbalance remains even late in the run. nequil=80000 gives 120000 total steps, within the 4× limit of 200000.

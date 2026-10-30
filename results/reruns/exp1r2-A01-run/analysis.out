@@ -1,0 +1,8 @@
+
+[slab] LIQUID-VAPOUR SLAB  (T*=0.85, rcut=5.00)
+    coexistence: held (rho_liq=0.769, rho_vap=0.011, rho_liq/rho_vap=68.1, faces 22.5 sigma apart)
+    10-90 interface width = 2.70 sigma
+    plot -> slab_density.png
+    plot -> slab_pressure.png
+    surface tension gamma = 0.675 (LJ units, epsilon/sigma^2) from one run (indicative).
+    -> gamma is a noisy LJ measurement; run the ensemble for a mean +/- error bar.

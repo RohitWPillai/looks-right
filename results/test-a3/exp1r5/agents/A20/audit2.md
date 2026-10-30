@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: When the Langevin damping time went from 0.5 to 5.0 (weak coupling), the mid-pore viscosity plateau fell from 2.528 to 2.104, a drop of 0.42 that is much larger than the roughly 0.1 run-to-run scatter; the new value sits within scatter of bulk (about 2.13), the temperature still holds at T* ≈ 1.0, and density is unchanged, so the strong thermostat was inflating the original viscosity and the new run's profile measures the real viscosity.
+evidence: new/command.txt (seed 11, tdamp 5.0, confirmed in new/log.lammps:224,295 as langevin 1.0 1.0 5.0); new/analysis.out (plateau 2.104 vs original/analysis.out 2.528, bulk about 2.13, pore-centre density 0.791 vs 0.790, mean 0.820 in both); new/poiseuille_w10.profile (mid-pore vx about 0.18–0.20 vs about 0.157 originally, which fits η ≈ 2.1); new/log.lammps production c_Tprof about 1.01 ± 0.03 (range 0.96–1.06, heating about 0.01, below 0.03), 0 dangerous builds.

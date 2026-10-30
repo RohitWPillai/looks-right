@@ -1,0 +1,4 @@
+verdict: trusted
+run: none
+cause: The flow is steady, linear and antisymmetric at the run's own coupling (eps_wf=0.6 set on the command line), so b ≈ 0.36σ holds; the fluid ran hot from viscous heating (1.12 instead of 1.0), but a cooler rerun should move b by about 0.05σ, which is within the run-to-run scatter (about 0.05 to 0.1σ) and would not change the result.
+evidence: analysis.out gives slope 0.0539 (R²=1.000), no-slip slope 0.0561, b=0.363σ and fluid T=1.12; day1_vx.profile pairs mirror bins to within about 0.005, and the slope is about 0.054 both near the walls and in the middle; log.lammps shows thermo temp levelling off near 0.96 after about 30k of the 200k production steps, which matches a fluid temperature of about 1.12; day1_T.dat gives 1.11851; command.txt confirms eps_wf 0.6 and seed 11.

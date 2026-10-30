@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The new run uses 0.1σ bins and shows clear wall layering, with peaks about 1σ apart that fade into a flat bulk; this confirms that the original "no layering" result came from its 0.99σ bins and not from the liquid.
+evidence: new/command.txt has `-var binw 0.1 -var seed 11`. new/log.lammps line 319 shows a bin width of 0.100046. new/day1_density.profile has 238 bins, with first-layer peaks of 1.481 (z≈3.25) and 1.463 (z≈20.56), second layers of 0.976 and 0.969, and third layers of 0.827 and 0.808, settling to a bulk of about 0.725 with bin-to-bin scatter of about ±0.01. The two walls agree to within 0.02, which is far below the 2.04x layering contrast reported in new/analysis.out. The original's 1.02x contrast (peak 0.736 against bulk 0.725) has been replaced.

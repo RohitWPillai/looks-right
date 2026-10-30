@@ -1,0 +1,4 @@
+verdict: untrusted
+run: gforce=0.2 nprod=1000000
+cause: The flow signal is buried in thermal noise. Across the bins vx swings by about 0.005–0.01 from one 0.1σ bin to the next, while the whole rise from wall to centre is only about 0.02, so dvx/dz is mostly noise. That means η(z) and the analyser's "no single plateau" finding can't be told apart from noise. Raising the drive 4× (shear rate stays about 0.1 or below, still linear) and running 5× more production steps should give roughly 9× the signal-to-noise, enough for a real profile.
+evidence: poiseuille_w4.profile has vx 0.0019–0.029 across bins 31–58. These values are noisy and don't form a parabola: centre bins 0.026, 0.018, 0.025 and off-centre bins 0.010–0.029. params.txt has gforce 0.05 and w_meas 4. The fluid occupies z≈2.9–5.8. log.lammps: c_Tprof ≈ 1.0 is steady, 726 fluid atoms, 308k total steps (so 1.108M is within the 4× limit). analysis.out reports "NO single plateau".

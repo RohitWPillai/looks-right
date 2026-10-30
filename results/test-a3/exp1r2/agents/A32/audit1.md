@@ -1,0 +1,4 @@
+verdict: untrusted
+run: binw=0.1
+cause: The run used `-var binw 1.0`, so each density bin is about one molecular diameter (σ) wide; that averages away the wall layers it was meant to resolve, and the "no layering" result (1.02x) comes from the coarse bins, not from the liquid.
+evidence: command.txt has `-var binw 1.0`, overriding the input file's default of 0.1 (density.in:22 says 0.1 "resolves the near-wall layers; coarsen to wash them out"); day1_density.profile has only 24 bins about 0.99σ wide, with the first fluid bins at 0.718–0.736 against a bulk of about 0.725; analysis.out reports a peak of 0.736 and a 1.02x contrast; the walls are at T* 1.0 as the purpose states, and log.lammps shows the full 20000 + 50000 steps ran without errors, so with 0.1σ bins the layer peaks (usually more than 1.5x bulk) would be far larger than the run-to-run scatter.

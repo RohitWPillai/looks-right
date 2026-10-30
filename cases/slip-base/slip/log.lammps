@@ -1,0 +1,597 @@
+LAMMPS (22 Jul 2025 - Update 5)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# =====================================================================
+#  NEMD Summer School 2026 - Day 1 hands-on
+#  MEASUREMENT: slip length
+#
+#  Shear the channel into steady Couette flow and read the velocity
+#  profile vx(z). Extrapolate the linear bulk profile into each wall: the
+#  distance past the wall where it would reach the wall speed is the slip
+#  length b.
+#
+#  Run from this folder via the Cirrus wrapper:
+#     ../submit.sh slip.in        (locally: lmp_serial -in slip.in)
+#  then: python analyse_slip.py
+#
+#  This file sets its case parameters, then includes the shared setup with
+#  `include ../shared_setup.lmp` (the LJ channel every Day-1 run shares).
+# =====================================================================
+
+# ---- case parameters (this measurement's settings; -var still overrides) ----
+variable Tbot   index 1.0      # isothermal walls (no thermal gradient)
+variable Ttop   index 1.0
+variable nequil index 20000    # equilibration steps
+variable nprod  index 200000   # production steps; the weak-wall slip case needs a long run
+variable eps_wf index 0.2      # weakly wetting wall -> measurable slip (raise toward 0.6 for a wetting wall)
+
+include ../shared_setup.lmp
+# #####################################################################
+# ##  SHARED SETUP  -  the LJ channel every Day-1 run includes        ##
+# ##  A Lennard-Jones liquid between two FCC walls, periodic in x, y,  ##
+# ##  with the walls capping z. Each measurement's input file sets    ##
+# ##  its own Tbot / Ttop / nequil / nprod ABOVE its                  ##
+# ##  `include ../shared_setup.lmp` line; this file then builds the   ##
+# ##  system from them. Walls are isothermal when Tbot == Ttop; the   ##
+# ##  conductance run sets a colder Ttop to impose a thermal gradient.##
+# #####################################################################
+#
+# This file EXPECTS Tbot, Ttop, nequil and nprod to be already defined by
+# the including script (see any of the four <measurement>.in files). The
+# wall-bath `tally yes` heat accounting below is read only by conductance.
+#
+# ---- parameters (override any with -var NAME value) ----
+variable Lx_t    index 24.0    # target box x (sigma); snapped to wall lattice below
+variable Ly_t    index 12.0    # target box y
+variable Lz_t    index 24.0    # target box z (walls + channel)
+variable wall_th index 3.0     # wall thickness each side (sigma)
+variable drive_th index 1.0    # outer rigid anchor-layer thickness (sigma)
+variable gap     index 0.3     # initial wall-fluid seeding gap (sigma)
+variable rho_w   index 1.0     # wall number density (FCC)
+variable rho_f   index 0.8     # fluid seeding density
+variable eps_ww  index 10.0    # stiff wall-wall LJ: keeps the wall crystalline
+variable eps_wf  index 0.6     # wall-fluid LJ coupling (wetting / slip parameter)
+variable rcut    index 2.5     # LJ cutoff (sigma)
+variable tdamp   index 0.5     # Langevin damping time (tau)
+variable dt      index 0.005   # timestep (tau)
+variable seed    index 90187   # RNG seed
+variable dump    index 0       # -var dump 1 -> write a VMD trajectory (day1_traj.xyz) for orientation; off by default
+
+# ---- derived geometry (snap box to whole FCC lattice constants) ----
+variable aw    equal (4.0/v_rho_w)^(1.0/3.0)   # FCC lattice constant
+variable Lx    equal round(v_Lx_t/v_aw)*v_aw
+variable Ly    equal round(v_Ly_t/v_aw)*v_aw
+variable Lz    equal round(v_Lz_t/v_aw)*v_aw
+variable zwlo  equal v_wall_th                 # top face of bottom wall
+variable zwhi  equal v_Lz-v_wall_th            # bottom face of top wall
+variable zdlo  equal v_drive_th                # top of bottom anchor layer
+variable zdhi  equal v_Lz-v_drive_th           # bottom of top anchor layer
+variable fllo  equal v_wall_th+v_gap           # first fluid plane
+variable flhi  equal v_zwhi-v_gap              # last fluid plane
+variable seed1 equal v_seed+3                  # distinct RNG streams per call site
+variable seed2 equal v_seed+7
+variable nrep  equal floor(v_nprod/100)        # ave/chunk: samples per block
+variable nfreq equal 100*v_nrep                # averaging window (<= nprod for nprod >= 100)
+# the averaging window needs nprod >= 100; a shorter (smoke) run gives a
+# zero-width window -> fail fast with a clear message, not a cryptic one.
+if "${nprod} < 100" then "print 'ERROR: nprod must be >= 100 (the averaging window)'" "quit 1"
+
+# ---- system: box, walls (type 2/3), fluid (type 1) ----
+units      lj
+atom_style atomic
+boundary   p p f                               # solid walls cap z; periodic x,y
+region     sim block 0 ${Lx} 0 ${Ly} 0 ${Lz} units box
+region     sim block 0 23.811015779523 0 ${Ly} 0 ${Lz} units box
+region     sim block 0 23.811015779523 0 12.6992084157456 0 ${Lz} units box
+region     sim block 0 23.811015779523 0 12.6992084157456 0 23.811015779523 units box
+lattice    fcc ${rho_w}
+lattice    fcc 1.0
+Lattice spacing in x,y,z = 1.5874011 1.5874011 1.5874011
+create_box 3 sim
+Created orthogonal box = (0 0 0) to (23.811016 12.699208 23.811016)
+  2 by 2 by 2 MPI processor grid
+region     rbot block INF INF INF INF 0.0     ${zwlo} units box
+region     rbot block INF INF INF INF 0.0     3 units box
+region     rtop block INF INF INF INF ${zwhi} ${Lz}   units box
+region     rtop block INF INF INF INF 20.811015779523 ${Lz}   units box
+region     rtop block INF INF INF INF 20.811015779523 23.811015779523   units box
+create_atoms 2 region rbot                     # type 2 = bottom wall
+Created 960 atoms
+  using lattice units in orthogonal box = (0 0 0) to (23.811016 12.699208 23.811016)
+  create_atoms CPU = 0.000 seconds
+create_atoms 3 region rtop                     # type 3 = top wall
+Created 960 atoms
+  using lattice units in orthogonal box = (0 0 0) to (23.811016 12.699208 23.811016)
+  create_atoms CPU = 0.000 seconds
+lattice    fcc ${rho_f}
+lattice    fcc 0.8
+Lattice spacing in x,y,z = 1.7099759 1.7099759 1.7099759
+region     rfl  block INF INF INF INF ${fllo} ${flhi} units box
+region     rfl  block INF INF INF INF 3.3 ${flhi} units box
+region     rfl  block INF INF INF INF 3.3 20.511015779523 units box
+create_atoms 1 region rfl                      # type 1 = fluid
+Created 4200 atoms
+  using lattice units in orthogonal box = (0 0 0) to (23.811016 12.699208 23.811016)
+  create_atoms CPU = 0.000 seconds
+mass       1 1.0
+mass       2 1.0
+mass       3 1.0
+
+# ---- interactions (explicit pair_coeff, no mixing) ----
+pair_style lj/cut ${rcut}
+pair_style lj/cut 2.5
+pair_coeff 1 1 1.0       1.0                   # fluid-fluid
+pair_coeff 2 2 ${eps_ww} 1.0                   # wall-wall (bottom)
+pair_coeff 2 2 10.0 1.0                   
+pair_coeff 3 3 ${eps_ww} 1.0                   # wall-wall (top)
+pair_coeff 3 3 10.0 1.0                   
+pair_coeff 2 3 ${eps_ww} 1.0                   # wall-wall (cross)
+pair_coeff 2 3 10.0 1.0                   
+pair_coeff 1 2 ${eps_wf} 1.0                   # fluid-wall (bottom)
+pair_coeff 1 2 0.2 1.0                   
+pair_coeff 1 3 ${eps_wf} 1.0                   # fluid-wall (top)
+pair_coeff 1 3 0.2 1.0                   
+neighbor     0.3 bin
+group        fluid type 1
+4200 atoms in group fluid
+delete_atoms overlap 0.9 fluid all             # clear seeding overlaps (fluid only)
+System init for delete_atoms ...
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 2.8
+  ghost atom cutoff = 2.8
+  binsize = 1.4, bins = 18 10 18
+  2 neighbor lists, perpetual/occasional/extra = 1 1 0
+  (1) command delete_atoms, occasional
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+  (2) pair lj/cut, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Deleted 280 atoms, new total = 5840
+
+# ---- wall heat baths: outer 1-sigma layer = rigid anchor (no drift),
+#      inner layer = Langevin bath (the heat-exchange surface) ----
+group   wbot type 2
+960 atoms in group wbot
+group   wtop type 3
+960 atoms in group wtop
+region  rbot_d block INF INF INF INF 0.0     ${zdlo} units box
+region  rbot_d block INF INF INF INF 0.0     1 units box
+region  rtop_d block INF INF INF INF ${zdhi} ${Lz}  units box
+region  rtop_d block INF INF INF INF 22.811015779523 ${Lz}  units box
+region  rtop_d block INF INF INF INF 22.811015779523 23.811015779523  units box
+group   drive_bot region rbot_d
+480 atoms in group drive_bot
+group   drive_top region rtop_d
+480 atoms in group drive_top
+group   drive    union drive_bot drive_top
+960 atoms in group drive
+group   bath_bot subtract wbot drive_bot
+480 atoms in group bath_bot
+group   bath_top subtract wtop drive_top
+480 atoms in group bath_top
+
+velocity all   create ${Tbot} ${seed} mom yes rot yes dist gaussian
+velocity all   create 1.0 ${seed} mom yes rot yes dist gaussian
+velocity all   create 1.0 11 mom yes rot yes dist gaussian
+velocity drive set 0.0 0.0 0.0                 # anchor still by default (sheared scripts override)
+fix     nve  all  nve
+fix     pin  drive setforce 0.0 0.0 0.0        # rigid wall anchor
+fix     bbot bath_bot langevin ${Tbot} ${Tbot} ${tdamp} ${seed1} tally yes
+fix     bbot bath_bot langevin 1.0 ${Tbot} ${tdamp} ${seed1} tally yes
+fix     bbot bath_bot langevin 1.0 1.0 ${tdamp} ${seed1} tally yes
+fix     bbot bath_bot langevin 1.0 1.0 0.5 ${seed1} tally yes
+fix     bbot bath_bot langevin 1.0 1.0 0.5 14 tally yes
+fix     btop bath_top langevin ${Ttop} ${Ttop} ${tdamp} ${seed2} tally yes
+fix     btop bath_top langevin 1.0 ${Ttop} ${tdamp} ${seed2} tally yes
+fix     btop bath_top langevin 1.0 1.0 ${tdamp} ${seed2} tally yes
+fix     btop bath_top langevin 1.0 1.0 0.5 ${seed2} tally yes
+fix     btop bath_top langevin 1.0 1.0 0.5 18 tally yes
+fix     boxwall all wall/reflect zlo EDGE zhi EDGE   # bounce stray atoms off z-faces
+timestep ${dt}
+timestep 0.005
+thermo       1000
+thermo_style custom step temp pe press
+minimize     1.0e-4 1.0e-6 1000 10000          # settle seeding overlaps
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 2.8
+  ghost atom cutoff = 2.8
+  binsize = 1.4, bins = 18 10 18
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair lj/cut, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 5.015 | 5.016 | 5.016 Mbytes
+   Step          Temp          PotEng         Press     
+         0   0.82959557    -24.655586     -9.7921801    
+         2   0.82959557    -24.868472     -7.7171194    
+Loop time of 0.0013947 on 8 procs for 2 steps with 5840 atoms
+
+99.9% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -24.6555858955208  -24.8670935974569  -24.8684717914351
+  Force two-norm initial, final = 702.14409 237.61342
+  Force max component initial, final = 26.707977 7.6132231
+  Final line search alpha, max atom move = 0.005407008 0.041164758
+  Iterations, force evaluations = 2 4
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.00088296 | 0.0010015  | 0.0011222  |   0.3 | 71.80
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00018683 | 0.00030846 | 0.00042775 |   0.0 | 22.12
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 3.5e-06    | 4.2555e-06 | 6.126e-06  |   0.0 |  0.31
+Other   |            | 8.053e-05  |            |       |  5.77
+
+Nlocal:            730 ave         778 max         686 min
+Histogram: 2 0 0 2 0 0 2 0 0 2
+Nghost:        1772.75 ave        1885 max        1657 min
+Histogram: 1 1 1 1 0 1 0 1 1 1
+Neighs:          25747 ave       29581 max       22420 min
+Histogram: 1 1 0 1 2 1 0 0 1 1
+
+Total # of neighbors = 205976
+Ave neighs/atom = 35.269863
+Neighbor list builds = 0
+Dangerous builds = 0
+reset_timestep 0
+# --- end of shared setup; each <measurement>.in continues below with its
+#     own measurement section ---
+
+# =====================================================================
+#  MEASUREMENT: slip length
+#  Shear the channel, reach steady Couette flow, time-average vx(z).
+# =====================================================================
+variable vwall index 0.5       # wall speed, each wall +/- (gentle = linear regime)
+
+# Drive: override the still default so the outer anchor layers translate at
+# +/- vwall, dragging the stiff walls with them. Thermostat the moving inner
+# bath layers about their STREAMING (centre-of-mass) velocity, so only the
+# thermal jiggle is damped and the drift is preserved.
+# NOTE: `units box` is essential -- without it `velocity set` uses LATTICE units
+# (the last lattice is the fluid lattice, a=1.71), so vwall=0.5 would drive the
+# walls at 0.855 (1.71x too fast) and the measured slip would be garbage.
+velocity drive_bot set -${vwall} 0.0 0.0 units box
+velocity drive_bot set -0.5 0.0 0.0 units box
+velocity drive_top set  ${vwall} 0.0 0.0 units box
+velocity drive_top set  0.5 0.0 0.0 units box
+compute Tcb bath_bot temp/com
+compute Tct bath_top temp/com
+fix_modify bbot temp Tcb
+fix_modify btop temp Tct
+
+run ${nequil}
+run 20000
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 3.89 | 3.891 | 3.891 Mbytes
+   Step          Temp          PotEng         Press     
+         0   0.84329655    -24.868472     -7.7060083    
+      1000   0.62481408    -24.289335     -3.9078336    
+      2000   0.6193432     -24.269146     -3.8962989    
+      3000   0.60621344    -24.226892     -3.8890758    
+      4000   0.6050147     -24.21984      -3.9964662    
+      5000   0.61274441    -24.222421     -4.0741605    
+      6000   0.61506794    -24.228798     -3.7958428    
+      7000   0.61592251    -24.204923     -4.2529649    
+      8000   0.61782963    -24.20152      -4.0077646    
+      9000   0.6291136     -24.211682     -4.1627232    
+     10000   0.60844035    -24.184749     -3.9764488    
+     11000   0.63255269    -24.207205     -4.0275174    
+     12000   0.62942698    -24.178675     -3.9627918    
+     13000   0.62665616    -24.174274     -3.9897021    
+     14000   0.6269159     -24.181733     -3.8635613    
+     15000   0.64413986    -24.182399     -3.9029514    
+     16000   0.62773793    -24.151148     -3.8822223    
+     17000   0.63525383    -24.155781     -3.6784381    
+     18000   0.64061659    -24.156278     -3.5650325    
+     19000   0.62066774    -24.126438     -4.0019353    
+     20000   0.63340352    -24.117088     -4.0363356    
+Loop time of 4.53197 on 8 procs for 20000 steps with 5840 atoms
+
+Performance: 1906457.641 tau/day, 4413.096 timesteps/s, 25.772 Matom-step/s
+99.9% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 1.6701     | 1.8952     | 2.1402     |  13.7 | 41.82
+Neigh   | 1.0087     | 1.1931     | 1.3567     |  14.1 | 26.33
+Comm    | 0.69527    | 1.0972     | 1.5061     |  32.5 | 24.21
+Output  | 0.00010808 | 0.00013974 | 0.00023063 |   0.0 |  0.00
+Modify  | 0.26263    | 0.28414    | 0.30591    |   3.3 |  6.27
+Other   |            | 0.06224    |            |       |  1.37
+
+Nlocal:            730 ave         752 max         700 min
+Histogram: 1 1 0 0 0 2 1 1 0 2
+Nghost:        1761.75 ave        1776 max        1743 min
+Histogram: 1 2 0 0 0 0 1 1 1 2
+Neighs:        24242.1 ave       26007 max       22368 min
+Histogram: 1 1 0 1 1 1 0 1 1 1
+
+Total # of neighbors = 193937
+Ave neighs/atom = 33.20839
+Neighbor list builds = 2407
+Dangerous builds = 0
+reset_timestep 0
+
+variable binw equal 0.5                        # velocity-profile bin width (sigma)
+variable nvb  equal round(v_Lz/v_binw)
+variable dzv  equal v_Lz/v_nvb
+compute cvx fluid chunk/atom bin/1d z lower ${dzv} units box
+compute cvx fluid chunk/atom bin/1d z lower 0.496062828740063 units box
+fix     fvx fluid ave/chunk 100 ${nrep} ${nfreq} cvx vx file day1_vx.profile
+fix     fvx fluid ave/chunk 100 2000 ${nfreq} cvx vx file day1_vx.profile
+fix     fvx fluid ave/chunk 100 2000 200000 cvx vx file day1_vx.profile
+
+# peculiar fluid temperature (the x-streaming velocity is removed, binned in z): it sits at
+# the T=1.0 set point for a gentle drive, but rises if driving harder viscously heats the
+# fluid -- a heating diagnostic, reported by analyse_slip.py.
+compute tpf fluid temp/profile 1 0 0 z 20
+fix     favt all ave/time 100 ${nrep} ${nfreq} c_tpf file day1_T.dat
+fix     favt all ave/time 100 2000 ${nfreq} c_tpf file day1_T.dat
+fix     favt all ave/time 100 2000 200000 c_tpf file day1_T.dat
+
+# geometry handed to the analysis script
+print "Lz ${Lz}"           file   day1_params.txt
+Lz 23.811015779523
+print "wall_th ${wall_th}" append day1_params.txt
+wall_th 3.0
+print "vwall ${vwall}"     append day1_params.txt
+vwall 0.5
+
+# optional orientation trajectory for VMD/OVITO (production only; off by default, pass -var dump 1).
+# element names are only for viewer colouring; the model is a generic LJ channel.
+if "${dump} > 0" then   "dump dvmd all xyz 1000 day1_traj.xyz"   "dump_modify dvmd element Ar Kr Kr sort id"
+
+run ${nprod}
+run 200000
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 4.142 | 4.142 | 4.143 Mbytes
+   Step          Temp          PotEng         Press     
+         0   0.63340352    -24.117088     -4.0363356    
+      1000   0.64784248    -24.137402     -4.140176     
+      2000   0.64076666    -24.126537     -3.7383249    
+      3000   0.64869942    -24.115456     -4.0211473    
+      4000   0.64410304    -24.114649     -3.9433206    
+      5000   0.6399984     -24.114277     -3.6243277    
+      6000   0.65163262    -24.107655     -3.8618481    
+      7000   0.63827352    -24.069419     -4.00686      
+      8000   0.66131029    -24.08938      -4.0076435    
+      9000   0.65878997    -24.06894      -4.2130181    
+     10000   0.65687233    -24.058646     -4.4086659    
+     11000   0.66674732    -24.063123     -4.1565922    
+     12000   0.65942789    -24.030433     -3.7428626    
+     13000   0.66574847    -24.048025     -3.4984928    
+     14000   0.67108975    -24.040213     -3.7012386    
+     15000   0.66486667    -24.007999     -3.9476537    
+     16000   0.66978383    -24.009764     -4.2093595    
+     17000   0.68278471    -24.009537     -3.5560379    
+     18000   0.68950095    -24.016453     -3.8096141    
+     19000   0.67633597    -23.986722     -3.9930106    
+     20000   0.68207178    -23.981203     -3.9656707    
+     21000   0.68847935    -23.96749      -3.8083088    
+     22000   0.69517757    -23.992211     -3.9044046    
+     23000   0.69871468    -23.960889     -3.657051     
+     24000   0.70249588    -23.949504     -3.7314289    
+     25000   0.72414477    -23.958524     -3.5688374    
+     26000   0.70119041    -23.942013     -3.9413053    
+     27000   0.72606159    -23.926822     -4.0322021    
+     28000   0.72746097    -23.917833     -3.839559     
+     29000   0.72458208    -23.920546     -3.8427057    
+     30000   0.72934628    -23.894295     -3.7481232    
+     31000   0.72882446    -23.872962     -3.3674869    
+     32000   0.74013976    -23.870716     -3.7163723    
+     33000   0.75497387    -23.870366     -3.7528109    
+     34000   0.75545341    -23.841289     -3.4997415    
+     35000   0.75819748    -23.853627     -3.6468618    
+     36000   0.77428239    -23.844375     -3.4239205    
+     37000   0.78214314    -23.830068     -3.4372887    
+     38000   0.7931685     -23.819033     -3.467749     
+     39000   0.80497756    -23.8128       -3.6251745    
+     40000   0.81035868    -23.820578     -3.4519123    
+     41000   0.80534717    -23.792125     -3.265038     
+     42000   0.8293016     -23.808642     -3.6025172    
+     43000   0.82394882    -23.763732     -3.2153234    
+     44000   0.82767381    -23.768125     -3.4326048    
+     45000   0.84628911    -23.773076     -3.274119     
+     46000   0.85150448    -23.741173     -3.4237468    
+     47000   0.85526466    -23.734157     -3.0919072    
+     48000   0.88226038    -23.747584     -3.2758015    
+     49000   0.87610884    -23.741359     -3.2346031    
+     50000   0.8801029     -23.741735     -3.1586345    
+     51000   0.90216065    -23.722812     -3.0610104    
+     52000   0.90809903    -23.732637     -2.9478402    
+     53000   0.89699096    -23.724439     -3.0717246    
+     54000   0.89428127    -23.685591     -2.9977918    
+     55000   0.90033518    -23.707041     -3.0050031    
+     56000   0.90581714    -23.696446     -2.7244677    
+     57000   0.92764842    -23.715217     -2.8503005    
+     58000   0.92120839    -23.65806      -2.9169567    
+     59000   0.94364767    -23.681196     -2.9785559    
+     60000   0.93811817    -23.67765      -2.8607553    
+     61000   0.94609094    -23.664571     -2.7074634    
+     62000   0.94762845    -23.675815     -3.0300497    
+     63000   0.94454124    -23.660899     -2.8097966    
+     64000   0.94141667    -23.652459     -2.8156066    
+     65000   0.95100603    -23.664554     -2.7155251    
+     66000   0.95938816    -23.676919     -2.7717269    
+     67000   0.95318313    -23.662656     -3.0920609    
+     68000   0.96668117    -23.658704     -2.6801035    
+     69000   0.97929633    -23.673435     -2.8401275    
+     70000   0.97546857    -23.672186     -2.6268871    
+     71000   0.97344552    -23.667652     -2.8503322    
+     72000   0.9709926     -23.655079     -2.9954375    
+     73000   0.98527924    -23.66205      -2.7901251    
+     74000   0.98286085    -23.642018     -2.9200028    
+     75000   0.98448115    -23.636265     -2.7900504    
+     76000   0.98760288    -23.670142     -2.7482657    
+     77000   0.9833834     -23.630421     -2.8290306    
+     78000   0.98762186    -23.644333     -2.6776229    
+     79000   0.9829107     -23.632881     -2.6116123    
+     80000   0.99973123    -23.638464     -2.5957081    
+     81000   0.98691755    -23.623626     -2.4616716    
+     82000   0.98171883    -23.614059     -2.6081535    
+     83000   0.98882559    -23.63112      -2.588479     
+     84000   0.98950374    -23.63521      -2.6482844    
+     85000   0.99842568    -23.651978     -2.3981556    
+     86000   0.99791003    -23.637707     -2.480884     
+     87000   1.0049886     -23.636194     -2.6050605    
+     88000   1.013147      -23.644325     -2.6727699    
+     89000   1.0157789     -23.642018     -2.6887039    
+     90000   1.0121291     -23.636717     -2.6605534    
+     91000   0.9970804     -23.628171     -2.3701261    
+     92000   0.99084325    -23.637245     -2.6945207    
+     93000   1.0150564     -23.646565     -2.7670262    
+     94000   1.0037308     -23.627737     -2.4862844    
+     95000   0.9970302     -23.636046     -2.4162792    
+     96000   1.0024203     -23.632848     -2.7521947    
+     97000   1.007023      -23.628599     -2.3125617    
+     98000   1.0050606     -23.61254      -2.5176675    
+     99000   1.0029647     -23.6123       -2.4959438    
+    100000   1.0112302     -23.626402     -2.7017051    
+    101000   1.0075993     -23.614168     -2.7581028    
+    102000   1.0098628     -23.622492     -2.8420171    
+    103000   1.005111      -23.616148     -2.5210581    
+    104000   1.0226315     -23.619227     -2.7394804    
+    105000   1.0052564     -23.60515      -2.6150384    
+    106000   1.0128942     -23.642873     -2.6442928    
+    107000   0.9978671     -23.603837     -2.7489405    
+    108000   1.0078653     -23.628238     -2.6300797    
+    109000   1.0254633     -23.613489     -2.522303     
+    110000   1.0035743     -23.613574     -2.5375673    
+    111000   1.0079504     -23.601756     -2.5694379    
+    112000   1.0140787     -23.627592     -2.5702299    
+    113000   1.0072722     -23.625448     -2.6550862    
+    114000   1.0209146     -23.623254     -2.4782269    
+    115000   1.0084786     -23.612981     -2.6014827    
+    116000   1.0150986     -23.61017      -2.4350819    
+    117000   1.0059888     -23.609578     -2.8215807    
+    118000   0.99660502    -23.609598     -2.5885392    
+    119000   1.0038134     -23.601914     -2.7613037    
+    120000   1.0055812     -23.625574     -2.714959     
+    121000   0.99965324    -23.637054     -2.604691     
+    122000   0.99672627    -23.60435      -2.4322912    
+    123000   1.0018296     -23.623126     -2.5224386    
+    124000   1.0044436     -23.616646     -2.7830559    
+    125000   1.0020043     -23.626797     -2.5962796    
+    126000   1.0116871     -23.617705     -2.3745983    
+    127000   1.0220181     -23.640469     -2.6423636    
+    128000   1.0169471     -23.631355     -2.6900789    
+    129000   1.0104958     -23.615342     -2.2847991    
+    130000   1.0119603     -23.609166     -2.6057678    
+    131000   1.0092577     -23.602938     -2.4483541    
+    132000   1.0109023     -23.627982     -2.8048788    
+    133000   1.0153484     -23.646038     -2.774428     
+    134000   0.99838107    -23.608548     -2.4755182    
+    135000   0.99161822    -23.598953     -2.5594772    
+    136000   1.00328       -23.623334     -2.4961959    
+    137000   1.0105826     -23.62786      -2.5622622    
+    138000   1.0066947     -23.639855     -2.5695492    
+    139000   0.99694233    -23.606149     -2.3696962    
+    140000   0.99335968    -23.619315     -2.744768     
+    141000   1.0075892     -23.632092     -2.572397     
+    142000   0.98371424    -23.607012     -2.6471591    
+    143000   1.0176487     -23.633379     -2.7987001    
+    144000   1.014038      -23.632751     -2.837209     
+    145000   1.0058018     -23.604788     -2.3247521    
+    146000   1.0049378     -23.632997     -2.7317426    
+    147000   1.0118529     -23.631821     -2.5899564    
+    148000   1.0212419     -23.639257     -2.8301858    
+    149000   1.0057083     -23.616749     -2.7056101    
+    150000   1.0268389     -23.636152     -2.7189276    
+    151000   1.0059191     -23.613864     -2.7537838    
+    152000   1.011806      -23.628401     -2.5832626    
+    153000   1.0191486     -23.616166     -2.4805352    
+    154000   1.0078294     -23.632686     -2.3900455    
+    155000   1.0012861     -23.618106     -2.5383108    
+    156000   0.98474153    -23.582535     -2.6060966    
+    157000   1.0061724     -23.618881     -2.6453882    
+    158000   1.0134281     -23.627928     -2.6384773    
+    159000   1.0243453     -23.64536      -2.7334361    
+    160000   1.0134044     -23.646514     -2.7920942    
+    161000   0.99599336    -23.623785     -2.6486155    
+    162000   1.0011944     -23.63578      -2.6980383    
+    163000   1.0067767     -23.628398     -2.483494     
+    164000   1.0017657     -23.622312     -2.8753371    
+    165000   1.0012956     -23.628841     -2.6260382    
+    166000   0.9985507     -23.623938     -2.5912603    
+    167000   1.017129      -23.63787      -2.6606209    
+    168000   1.0011205     -23.612932     -2.3856442    
+    169000   1.0018246     -23.614879     -2.643152     
+    170000   1.0106993     -23.636945     -2.639497     
+    171000   1.0103551     -23.632803     -2.7250666    
+    172000   1.0073319     -23.64342      -2.5253245    
+    173000   1.0037465     -23.655431     -2.410907     
+    174000   0.9871358     -23.628447     -2.6543987    
+    175000   1.001809      -23.657182     -2.6578593    
+    176000   0.9981588     -23.648641     -2.5023667    
+    177000   0.99375037    -23.632777     -2.4811065    
+    178000   0.9950683     -23.646299     -2.5989414    
+    179000   1.0221653     -23.632367     -2.5412059    
+    180000   1.002104      -23.602233     -2.4384061    
+    181000   1.0003963     -23.608962     -2.6205109    
+    182000   1.0080989     -23.633723     -2.6851987    
+    183000   1.0197066     -23.638002     -2.4365092    
+    184000   0.99930189    -23.641674     -2.4826579    
+    185000   1.0128323     -23.627977     -2.7089897    
+    186000   1.0169442     -23.639148     -2.5781244    
+    187000   1.0123733     -23.633941     -2.5862245    
+    188000   0.99893173    -23.619327     -2.582766     
+    189000   0.99670107    -23.644408     -2.6379272    
+    190000   1.0030793     -23.627426     -2.7012213    
+    191000   1.0092797     -23.642804     -2.7621895    
+    192000   1.0029887     -23.628622     -2.4108863    
+    193000   1.0303689     -23.654844     -2.3287248    
+    194000   1.0175097     -23.626323     -2.5628022    
+    195000   1.0082102     -23.629994     -2.5564654    
+    196000   1.0067755     -23.632136     -2.6720435    
+    197000   1.0168297     -23.619533     -2.7483959    
+    198000   1.0038318     -23.610322     -2.5001954    
+    199000   1.0071763     -23.614646     -2.7307371    
+    200000   1.0047214     -23.607673     -2.5475636    
+Loop time of 47.3544 on 8 procs for 200000 steps with 5840 atoms
+
+Performance: 1824541.542 tau/day, 4223.476 timesteps/s, 24.665 Matom-step/s
+100.0% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 19.167     | 20.026     | 21.335     |  17.8 | 42.29
+Neigh   | 13.212     | 14.441     | 15.943     |  30.0 | 30.49
+Comm    | 6.5796     | 9.4909     | 11.551     |  64.3 | 20.04
+Output  | 0.00098458 | 0.0010802  | 0.0016936  |   0.7 |  0.00
+Modify  | 2.5406     | 2.7611     | 2.9649     |   9.6 |  5.83
+Other   |            | 0.6346     |            |       |  1.34
+
+Nlocal:            730 ave         751 max         698 min
+Histogram: 1 1 0 1 0 0 0 1 3 1
+Nghost:        1713.25 ave        1741 max        1700 min
+Histogram: 3 1 1 1 0 0 1 0 0 1
+Neighs:        24168.6 ave       25244 max       22635 min
+Histogram: 1 0 0 1 1 1 0 2 1 1
+
+Total # of neighbors = 193349
+Ave neighs/atom = 33.107705
+Neighbor list builds = 28881
+Dangerous builds = 0
+print "Done. Analyse with:  python analyse_slip.py"
+Done. Analyse with:  python analyse_slip.py
+Total wall time: 0:00:51

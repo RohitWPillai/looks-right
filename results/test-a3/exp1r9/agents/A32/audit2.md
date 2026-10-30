@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The 0.1σ rerun resolves the layering the 0.99σ original averaged away: both walls show matching oscillating layers with first peaks near 1.47, about twice the bulk density and far above the ~0.01 bin-to-bin scatter, and the bulk density of 0.725 agrees with the original, so the new profile serves the purpose.
+evidence: new/command.txt (`-var binw 0.1 -var seed 11`); new/day1_density.profile (238 chunks; first peaks 1.481 at z≈3.25 and 1.463 at z≈20.56, then minima 0.367 at z≈3.75 and 0.374 at z≈20.06, second peaks 0.976 at z≈4.25 and 0.969 at z≈19.56, mid-channel flat at 0.70–0.75); new/analysis.out (bulk 0.725, peak 1.481, contrast 2.04x); new/log.lammps (Tbot=Ttop=1.0, 20000 equilibration + 50000 production steps completed, no warnings or errors); original/analysis.out (contrast 1.02x at binw 1.0)

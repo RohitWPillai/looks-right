@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The new run used the input's default 40000 equilibration steps instead of 10000, so production started at steady state: the heat in matches the heat out within 1% and the two walls carry the same heat current; the 1.5x gap between G_bot and G_top is only a scatter note, and some gap is expected because the walls sit at different temperatures, which is the point of measuring each wall separately.
+evidence: new/command.txt `-var nequil 40000 -var seed 11` (same seed as original/command.txt `-var nequil 10000 -var seed 11`); new/log.lammps temperature levels off at 0.91 by the end of equilibration and stays at 0.915–0.944 through production; new/analysis.out heat in/out 14.70/14.55 (1.0% imbalance, no steady-state warnings), J_bot=0.0486 vs J_top=0.0481, dT/dz R²=0.972, G_bot=0.623 and G_top=0.407, against original/analysis.out at 53.3% imbalance, J 0.0548/0.0256, G 0.302/0.536.

@@ -1,0 +1,4 @@
+verdict: trusted
+run: none
+cause: The 0.1σ bins resolve a clear, symmetric layered profile; the fluid was still warming toward T*≈1 for roughly the first 40% of production, but averaged over the run that is only about 5% too cold, which shifts the peak by an estimated 1–3%, too little to change whether the layering is resolved.
+evidence: analysis.out reports ρ_bulk ≈ 0.725 and a near-wall peak of 1.481 (2.04×). day1_density.profile shows the same peak at both walls (1.481 at z≈3.25, 1.463 at z≈20.56) and second layers of 0.976 and 0.969, with a flat bulk of about 0.72±0.01 in 0.1σ bins (238 bins, 3920 atoms). In log.lammps, thermo Temp is taken over all 5840 atoms, 960 of them frozen anchors, so the plateau of 0.837 means the moving atoms are at about 1.00. Temp rises from 0.687 at the start of production to about 0.82 by step ~21000 and stays there through step 50000. The equilibration run was 20000 steps and production 50000 (`-var seed 11`).

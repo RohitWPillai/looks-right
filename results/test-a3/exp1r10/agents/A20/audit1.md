@@ -1,0 +1,4 @@
+verdict: unresolved
+run: tdamp=5.0
+cause: The mid-pore viscosity of 2.53 is about 19% above the bulk LJ value (~2.1) even though the mid-pore density is only 0.79, and the fluid Langevin thermostat is strongly coupled (tdamp 0.5, so γ = 2) and acts on 1σ temp/profile bins, which is known to inflate the measured viscosity; a weakly coupled run would either bring the plateau down to ~2.1–2.2, a shift several times the ~±0.05–0.1 seed scatter, or confirm 2.5.
+evidence: analysis.out shows a plateau of 2.528, in-pore density 0.820, pore-centre 0.790 and bulk value 2.13; shared_setup.lmp has tdamp 0.5 and temp/profile with nzT = round(lz/1.0) = 15 bins; poiseuille_w10.profile gives vmax ≈ 0.157 and vx ≈ 0 at z' ≈ ±4.4, so η = gρ/(2a) ≈ 2.47 independently, with a per-bin vx noise of ~0.008 and a fit error of ~2% on 90 bins; log.lammps shows c_Tprof ≈ 1.00 ± 0.03, so there is no heating, and the shear rate near the wall is ≲ 0.07, which could only lower η, not raise it.

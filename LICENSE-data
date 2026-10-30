@@ -1,0 +1,19 @@
+Data, text and figures in this repository are licensed under the Creative
+Commons Attribution 4.0 International licence (CC BY 4.0), except the files
+listed in COURSE-FILES.md and the code covered by LICENSE.
+
+Copyright (c) 2026 Rohit Pillai
+
+You are free to share and adapt the material for any purpose, including
+commercially, provided you give appropriate credit, provide a link to the
+licence, and indicate if changes were made.
+
+Full licence text: https://creativecommons.org/licenses/by/4.0/legalcode
+
+Not covered: every file listed in COURSE-FILES.md. They come from the NEMD 2026
+summer-school course, or are outputs of its code that reproduce its text, and
+are redistributed under the course repository's licence: MIT for its code and
+simulation inputs (notice in LICENSE-course), CC BY 4.0 for its handouts,
+figures and text, copyright the NEMD Summer School 2026 organisers and
+contributors. Attribution: NEMD Summer School 2026,
+https://github.com/Non-Equilibrium-Molecular-Dynamics/NEMD-Summer-School-2026

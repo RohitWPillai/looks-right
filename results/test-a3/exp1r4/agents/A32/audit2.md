@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The new run at the 0.1 σ default bin width shows clear, matching wall layering at both walls: first peaks at about 2× the bulk density, then smaller peaks fading into a flat bulk. These peaks are far larger than the bin-to-bin scatter of about ±0.015, so the profile does what the purpose asks.
+evidence: new/command.txt has `-var binw 0.1 -var seed 11`. In new/day1_density.profile (238 bins about 0.1 σ wide), the first peaks are 1.481 at z=3.25 and 1.463 at z=20.56. Second peaks are 0.976 and 0.969, third peaks are 0.827 and 0.808, and the minima are 0.367 and 0.374. Bulk bins run from about 0.70 to 0.74. new/analysis.out reports rho_bulk ~0.725, peak ~1.481 and contrast 2.04x. new/log.lammps has Tbot=Ttop=1.0, completes 20000 equilibration and 50000 production steps, and shows no errors. original/ (binw 1.0, contrast 1.02x) shows no layering.

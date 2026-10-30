@@ -1,0 +1,4 @@
+verdict: unresolved
+run: nequil=100000 nprod=300000
+cause: The potential energy per atom kept rising during production, from -4.45 to about -4.05, and only levelled off after about 50000 steps, so roughly half of the averaged stress data comes from an unrelaxed slab; that bias may be larger or smaller than the single-run scatter, so this run cannot tell whether gamma=0.261 is right.
+evidence: log.lammps production thermo (pe -4.447 at step 0, -4.23 at 10000, -4.07 at 40000, then around -4.05 to -4.0 up to 100000; temperature steady at 0.85) after only 10000 equilibration steps; analysis.out gamma=0.261 from one run, rho_l=0.706, rho_v=0.021, interface width 3.27; my estimate from the thermo pzz-(pxx+pyy)/2 values is a run-to-run scatter of about 0.05 to 0.1 in gamma, on the same order as any likely drift bias; slab_density.png and slab_pressure.png show two clean interfaces, but the interior pressure inside the slab still swings by about ±0.03.

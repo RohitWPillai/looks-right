@@ -1,0 +1,4 @@
+verdict: trusted
+run: none
+cause: Both interfaces formed cleanly and the slab reached coexistence, so γ = 0.261 is a sound value for this truncated rcut = 2.5 LJ model at T* = 0.85; the 30k-step energy drift at the start of production probably shifts γ by less than its single-run scatter of roughly ±0.03–0.05, which is too small for a rerun to change the verdict.
+evidence: analysis.out reports γ = 0.261, ρ_liq = 0.706, ρ_vap = 0.021 and a 10–90 width of 3.27σ; slab_density.png shows two symmetric tanh interfaces 23.5σ apart with flat bulk plateaus; slab_pressure.png shows the vapour P_N = P_T ≈ 0.019, which matches ρ_vap·T = 0.018; in log.lammps the production PE rises from −4.45 to about −4.05 over the first ~30k of 100k steps and then holds; my rough check of the thermo P_zz − (P_xx + P_yy)/2 over steps 1k–20k averages about 0 (snapshot scatter ~0.023), which does not show a transient inflating γ; Lx = Ly = 10.73σ and Lz = 89.39σ (slab_params.txt).

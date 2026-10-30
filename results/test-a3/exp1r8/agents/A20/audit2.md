@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: With the thermostat coupling 10× weaker (`tdamp` 5.0), the mid-pore viscosity fell from 2.528 to 2.104, a drop of 0.42 against scatter of about ±0.04, so the original's strong per-bin drag was adding fake viscosity; the new value matches bulk LJ (about 2.13) at bulk-like centre density, and the fluid temperature still holds at T* 1.0.
+evidence: `new/command.txt` (`-var tdamp 5.0`), `new/log.lammps` (langevin 1.0 1.0 5.0; c_Tprof about 0.98–1.04 through all 200000 production steps; 4097 atoms kept; Dangerous builds = 0; seed density rho_acc 0.7999); `new/analysis.out` (plateau 2.104, density mean 0.820, centre 0.791) vs `original/analysis.out` (plateau 2.528, centre 0.790); `new/shared_setup.lmp` (otherwise the same as the original run: same nzT bins, temp/profile thermostat and walls)

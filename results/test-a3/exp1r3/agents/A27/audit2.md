@@ -1,0 +1,6 @@
+I compared the new run's log and profile with the original's. Here's the answer:
+
+verdict: trusted
+use: new
+cause: The new run's fluid was settled at the wall temperature for all of production, and its two wall peaks agree with each other. The original's peaks are lower than the new ones, not higher as the "colder, more layered" explanation predicted, and the gap is about the size of the original's own wall-to-wall spread, so it is mostly scatter rather than a real bias.
+evidence: new/command.txt was run with nequil 80000 and seed 11. In new/log.lammps, thermo temp rose 0.59→0.83 during equilibration until about step 50000, then held flat at 0.83–0.84 to step 80000 and at 0.83–0.87 (mean about 0.846, which is about 0.846×5840/4880 ≈ 1.01 for the fluid) across all 50000 production steps, with PE flat at about −23.79. In new/day1_density.profile the wall peaks are 1.497 and 1.501 (they differ by 0.004), with bulk about 0.720±0.01; new/analysis.out reports 0.720 and 1.501 (contrast 2.09x). In original/day1_density.profile the peaks are 1.481 and 1.463 (they differ by 0.018), with bulk 0.725 (contrast 2.04x). That is 0.016–0.038 below the new peaks, the opposite direction to the predicted overshoot, and the layered structure is the same in both.

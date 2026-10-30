@@ -1,0 +1,13 @@
+case,right answer (key),"Exp 1 (Opus, base)"
+conductance-base,trusted,10 of 10
+conductance-push,untrusted,10 of 10
+density-base,trusted,10 of 10
+density-push,untrusted,10 of 10
+pore-base,trusted,7 of 10
+pore-push,"untrusted, for the layering (disputed)",0 of 10
+slab-base,trusted,10 of 10
+slab-hot,untrusted,10 of 10
+slip-base,untrusted,10 of 10
+slip-push,not scored,not scored
+viscosity-base,untrusted (corrected 9 Oct; trusted before),6 of 10
+viscosity-push,untrusted,10 of 10

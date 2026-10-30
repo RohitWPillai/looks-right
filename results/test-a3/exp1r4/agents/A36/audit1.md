@@ -1,0 +1,4 @@
+verdict: untrusted
+run: nequil=40000
+cause: The run overrode the designed 40000-step equilibration with nequil=10000, so the system was still warming up when production began: heat in and heat out differ by 53%, which makes both wall J values (and so G_bot=0.302 and G_top=0.536) wrong by far more than run-to-run scatter.
+evidence: command.txt has `-var nequil 10000` against `nequil index 40000` in conductance.in, which says still walls need the longer equilibration; analysis.out shows 16.5683 heat in against 7.7384 heat out per unit time (53.3% imbalance), cumulative-heat fit R^2 of 0.986/0.889, J_bot=0.0548 against J_top=0.0256, and the analysis script's own warning that the run is not steady; log.lammps shows 10000 equilibration steps then 40000 production steps, so the named run totals 80000 steps, under the 200000 cap.

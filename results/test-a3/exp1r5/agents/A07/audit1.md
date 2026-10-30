@@ -1,0 +1,4 @@
+verdict: untrusted
+run: nequil=200000
+cause: The system had not settled when averaging began: it kept warming through the first ~80,000 of the 200,000 production steps, and the single whole-run average of vx(z) mixes that spin-up into the slope, so b=4.15σ does not describe steady Couette flow at T* 1.0.
+evidence: log.lammps: all-atom Temp stays ~0.62–0.63 through the 20,000 equilibration steps, then rises 0.633→1.00 over production steps 0–80,000 (PE −24.12→−23.64, Press −4.0→−2.6) before levelling off. slip.in/log: fix ave/chunk 100 2000 200000 gives one block averaged over the whole run. day1_vx.profile: the curve is steep near the walls (−0.46/−0.38/−0.34 at z=2.73/3.22/3.72) and shallower in the middle, a profile still filling in from the walls. analysis.out: central slope 0.0383 vs no-slip 0.0561, b≈4.148σ, fluid T 1.08. The new run totals 400,000 steps, within 4× the original 220,000.

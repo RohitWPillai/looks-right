@@ -1,0 +1,4 @@
+verdict: untrusted
+run: binw=0.1
+cause: The run was launched with `-var binw 1.0`, giving 0.99σ bins. LJ wall layers are about 1σ apart, so each bin averages over a whole layer and the layering disappears. The reported "no layering left" (contrast 1.02x) comes from that bin width, not from the liquid; the input file's own default of 0.1σ would show the layers, likely at a contrast of several times rather than a 2% bump.
+evidence: command.txt has `-var binw 1.0 -var seed 11`. log.lammps line 319 shows the bin width as 0.992125657480125. day1_density.profile has 24 bins, with 0.718–0.736 next to the walls against a bulk of about 0.725 (bin-to-bin scatter about 0.003). analysis.out reports a peak of 0.736, a bulk of 0.725 and a contrast of 1.02x. density.in line 22 says "0.1 resolves the near-wall layers; coarsen to wash them out".

@@ -1,0 +1,4 @@
+verdict: untrusted
+run: nequil=80000
+cause: The fluid was still warming toward the T* 1.0 wall baths for the first ~25000 of the 50000 production steps, so the averaged profile mixes in a cooler, unsettled liquid; this likely biases the contact peak by a few percent, more than the ~1% top-to-bottom scatter, and a longer equilibration would remove that part.
+evidence: log.lammps thermo temp (all atoms, including the 960 pinned anchor atoms with zero velocity) rises 0.673→0.80 (step 20000)→plateau ~0.83–0.84 only after production step ~25000 (0.837 corresponds to a fluid temperature of ≈1.0; production start ≈0.76), and PE drifts −23.94→−23.80 over the same window; day1_density.profile/analysis.out are a single 50000-step average with contact peaks of 1.481 (bottom) and 1.463 (top) and bulk density ~0.725.

@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: With the intended nequil=40000 the run reaches steady state (heat in matches heat out, the fluid interior shows a linear gradient), so the two G values are steady-state conductances, and the 1.5x gap between them fits walls sitting at different temperatures, which the purpose measures separately.
+evidence: new/command.txt has `-var nequil 40000 -var seed 11`; new/analysis.out gives in/out 14.70 vs 14.55 (1.0% imbalance, down from 53.3% in original/analysis.out), interior R²=0.972, J_bot=0.0486 vs J_top=0.0481, G_bot=0.623 (dT=0.078) and G_top=0.407 (dT=0.118), with no steady-state warnings; new/day1_conductance.png shows a linear interior T(z) with clear jumps at both walls; new/log.lammps completed 40000 equilibration and 40000 production steps with no errors; new/day1_heat.dat is binary and was not read.

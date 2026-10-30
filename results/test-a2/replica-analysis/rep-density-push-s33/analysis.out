@@ -1,0 +1,6 @@
+
+Sheet 1: density
+    bulk number density  rho_bulk ~ 0.724
+    near-wall peak rho    ~ 0.736  (layering contrast 1.02x)
+    -> no layering left: the liquid meets the wall essentially uniform.
+    plot -> day1_density.png

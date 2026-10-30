@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: With nequil=80000, the fluid's temperature levels off before production starts and stays flat through all of it, so the density average covers only steady fluid at the stated wall temperature. The new peak (1.501) also differs from the original (1.481) by only about 1.4%, and in the opposite direction from the bias the earlier audit predicted, so that bias is within run-to-run scatter and the layering result holds.
+evidence: new/command.txt (seed 11, nequil 80000). In new/log.lammps, Temp levels off at about 0.83–0.84 by equilibration step about 50000. It stays at 0.83–0.87 (PotEng about −23.78 to −23.82) through all 50,000 production steps, averaged in one ave/chunk 100 500 50000 block (new/day1_density.profile, step 50000). new/analysis.out gives rho_bulk 0.720 and a near-wall peak of 1.501 (contrast 2.09x) at binw 0.1, against original/analysis.out's 0.725 and 1.481 (2.04x).

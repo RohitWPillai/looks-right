@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The new run used the designed 40000-step equilibration and reached steady state, so heat in now matches heat out to within 1% and its wall currents and conductances measure what the purpose asks for; the original run's numbers do not.
+evidence: new/command.txt has `-var nequil 40000 -var seed 11`; new/log.lammps shows 40000 equilibration steps and 40000 production steps with no warnings; new/analysis.out shows 14.7045 heat in against 14.5505 heat out (1.0% imbalance, where the original had 53.3%), no steady-state warning, J_bot=0.0486 ≈ J_top=0.0481, interior gradient R^2=0.972, and G_bot=0.623 (dT=0.078), G_top=0.407 (dT=0.118). The 1.5x gap between the walls comes only with the script's note to run replicas, since some asymmetry is expected between walls at different temperatures, so it is not a sign of an unsteady run.

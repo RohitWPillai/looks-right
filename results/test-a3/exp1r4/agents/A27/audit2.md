@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: With nequil=100000 the fluid had finished warming to the T* 1.0 walls before production began, so the new profile describes the T* 1.0 liquid; it differs from the original by less than the scatter, but only the new run is properly equilibrated.
+evidence: new/command.txt (seed 11, nequil 100000). new/log.lammps: thermo temp rose 0.59→0.83 over equilibration steps 0–~50000, then held at 0.83–0.85 through step 100000. All of production stayed at 0.825–0.853, matching the 0.836 expected when the 960 anchor atoms are counted, with PE flat at −23.78 to −23.82 and pressure at −3.1 to −3.5. new/day1_density.profile: wall peaks 1.4907 and 1.4886 (0.14% apart), bulk 0.71–0.73. new/analysis.out: peak 1.491, bulk 0.720, contrast 2.07x, against the original 1.481 / 0.725 / 2.04x. The 0.7% peak shift is within the original's ~1% wall-to-wall scatter, and both runs show the same layering.

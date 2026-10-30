@@ -1,0 +1,4 @@
+verdict: untrusted
+run: tdamp=5.0
+cause: The Langevin thermostat damps the fluid strongly (tdamp=0.5 τ, friction about 2/τ) and slows its dynamics, so the viscosity came out about 19% above the bulk LJ value. A rough estimate is that friction this strong slows the liquid by 15–20%. That is far more than the few-percent fit scatter, and a fluid sampled at 0.79 at pore centre should match bulk mid-pore, so the plateau is a thermostat artefact rather than the fluid's local viscosity.
+evidence: analysis.out gives a mid-pore plateau of 2.528 against bulk 2.13 (+19%) with pore-centre density 0.790; shared_setup.lmp has tdamp=0.5 with fix langevin on the fluid; the vx scatter in poiseuille_w10.profile is about 0.008 on vmax≈0.155, so the curvature fit error is only a few percent; the eta(z) panel in poiseuille_w10.png is flat at ≈2.5 with ±0.1 layering wiggles; log.lammps shows c_Tprof≈1.00, with no errors or lost atoms.

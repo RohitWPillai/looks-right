@@ -1,0 +1,4 @@
+verdict: untrusted
+run: nequil=120000
+cause: The 20,000-step equilibration ends while the system is still warming, so about the first 40% of the 200,000-step averaging window comes from a fluid that has not yet reached T* 1.0 — and b is sensitive to the averaged slope: each 1% bias in the shear rate shifts it by ~0.13σ, more than this clean fit's run-to-run scatter.
+evidence: log.lammps thermo temp climbs steadily from 0.63 at production start to a plateau near 1.0 only after ~85,000 production steps (PE rises over the same span, −24.12 → −23.63), and day1_vx.profile is one block averaged over all 200,000 steps; analysis.out gives shear rate 0.0383 against the 0.0561 no-slip slope, h ≈ 17.81, b = (2·0.5/0.0383 − 17.81)/2 ≈ 4.15σ, and fluid T 1.08, which mixes the cold start with the steady state.

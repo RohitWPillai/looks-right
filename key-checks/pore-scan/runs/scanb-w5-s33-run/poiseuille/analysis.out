@@ -1,0 +1,7 @@
+
+[5] LOCAL VISCOSITY  (measured pore width w = 5.00 sigma, NARROW)
+    in-pore density: mean 0.845, pore-centre 0.868 (target rho* = 0.8)
+    rho_m(z) shows 4 wall-induced layer(s) across the pore - no bulk region.
+    eta(z) = -P_xz/(dvx/dz) has NO single plateau here: a local Newtonian viscosity
+    no longer describes the liquid (Travis, Todd & Evans 1997).
+    plot -> poiseuille_w5.png

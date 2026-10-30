@@ -1,0 +1,4 @@
+verdict: trusted
+run: none
+cause: The run reached liquid–vapour coexistence with two well-separated, stable interfaces and an isotropic bulk vapour, and γ = 0.261 is plausible for truncated rc = 2.5 LJ at T* = 0.85; the energy was still drifting in the first ~40k production steps as vapour refilled the gaps, but that would shift γ by much less than the single-run scatter of about ±0.04–0.05, so no extra run would change this verdict.
+evidence: analysis.out (γ = 0.261, ρ_l = 0.706, ρ_v = 0.021, ratio 33.9, faces 23.5σ apart, 10–90 width 3.27σ); slab_density.profile (flat liquid plateau ≈ 0.70–0.71 over z ≈ 37–53 and vapour ≈ 0.02 on both sides); slab_pressure.png (P_N ≈ P_T ≈ 0.02 in the vapour, bin-to-bin noise of ±0.04 in the liquid, which sets the γ scatter); log.lammps (production PE/atom drifts from −4.33 to about −4.05 by step 40k and then stays flat, T averages ≈ 0.85, no warnings); slab_params.txt (Lx = Ly = 10.73σ, Lz = 89.4σ, nprod = 100000, seed 11).

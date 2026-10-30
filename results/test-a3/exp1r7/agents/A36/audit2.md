@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The new run equilibrated for 80000 steps, which reaches steady state: heat in and heat out now match to within 0.7% and both walls take up heat steadily from the start of production. So these conductances are steady-state values, while the original run's numbers (taken before steady state) moved well outside any plausible scatter.
+evidence: new/command.txt shows `-var nequil 80000 -var seed 11` (same seed as original). new/log.lammps shows 80000 + 40000 steps completed with no warnings. new/analysis.out shows heat in/out 14.2252 / 14.1196 (imbalance 0.7%, down from 53.3%), no steady-state warnings, G_bot=0.484 (dT=0.097, J=0.0470) and G_top=0.415 (dT=0.113, J=0.0467). new/day1_heat.dat: f_bbot/f_btop are -645/+744 at step 10000 and -3049/+3026 at step 40000, both roughly linear, unlike the original where f_btop sat at ~0 for the first 10000 steps. The original's G_bot=0.302 / G_top=0.536 differ by about 60% / 23%.

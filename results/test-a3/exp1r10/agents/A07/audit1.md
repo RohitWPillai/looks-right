@@ -1,0 +1,4 @@
+verdict: untrusted
+run: vwall=0.25 nequil=150000 nprod=400000
+cause: The profile was averaged while the fluid was still warming from about T 0.67, and it then settled at about 1.19; the weakly coupled walls (eps_wf 0.2) let the fluid run hot, so the slip length is not measured in steady flow at T* 1.0.
+evidence: In log.lammps, production thermo Temp climbs from 0.633 to about 1.0 over the first ~80000 of 200000 steps (PE -24.12 to -23.63), then stays flat. ave/chunk averages one window over all 200000 steps (nfreq=200000), so day1_vx.profile includes that warm-up. analysis.out gives fluid T 1.08 against a 1.0 set point; sorting out which atoms carry the Temp (960 still anchors, 960 baths, 3920 fluid) gives a steady fluid T of about 1.19 and about 0.67 at the start of production. analysis.out: b ≈ 4.15 σ, shear rate 0.0383 vs no-slip 0.0561, R²=1.000; the profile is clean, so a T shift of this size should move b by much more than its scatter.

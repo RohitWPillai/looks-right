@@ -1,0 +1,16 @@
+{"type": "system", "subtype": "init", "cwd": "copy/", "model": "claude-opus-5-5", "claude_code_version": "2.1.289", "tools": ["Glob", "Grep", "Read"]}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Glob", "input": {"pattern": "**/*"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Read", "input": {"file_path": "copy/new/analysis.out"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Read", "input": {"file_path": "copy/original/analysis.out"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Read", "input": {"file_path": "copy/new/command.txt"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Read", "input": {"file_path": "copy/new/slip.in"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Read", "input": {"file_path": "copy/original/slip.in"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Read", "input": {"file_path": "copy/original/command.txt"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Read", "input": {"file_path": "copy/new/day1_T.dat"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Read", "input": {"file_path": "copy/new/shared_setup.lmp"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Grep", "input": {"path": "copy/new/log.lammps", "pattern": "^\\s*\\d+\\s+[\\d.-]+\\s+[\\d.-]+\\s+[\\d.-]+\\s*$|WARNING|ERROR|Loop time|Step", "output_mode": "content"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Grep", "input": {"path": "copy/new/day1_vx.profile", "pattern": ".", "output_mode": "content"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Grep", "input": {"path": "copy/new/day1_T.dat", "pattern": ".", "output_mode": "content"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Read", "input": {"file_path": "copy/new/day1_params.txt"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Grep", "input": {"path": "copy/new/log.lammps", "pattern": "WARN|Loop time|Done|Total wall", "output_mode": "content"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Grep", "input": {"path": "copy/new/log.lammps", "pattern": "^\\s+(400000|600000|780000|800000)\\s", "output_mode": "content"}}]}}

@@ -1,0 +1,6 @@
+Reading the production log: temperature drifted through the first ~40% of the averaging window, so the profile isn't steady state. Writing the verdict now.
+
+verdict: untrusted
+run: nequil=200000 nprod=400000 vwall=0.25
+cause: The 20,000-step equilibration was too short for the weakly coupled (eps_wf=0.2) fluid to reach a steady temperature, so about 40% of the averaging window holds a fluid that was still heating and not at steady state; once steady, the shear heated the fluid to about T*=1.18, not the stated T*=1.0.
+evidence: In log.lammps, the production thermo Temp climbs from 0.633 at step 0 to about 1.00 by step 85,000, and PotEng rises from -24.12 to -23.63, then both stay flat. Removing the 960 rigid drive atoms (T contribution ≈0.083) and the bath walls from the late Temp of ≈1.007 puts the steady fluid at about 1.18. That fits analysis.out, which averages over the whole window: fluid T = 1.08 against the 1.0 set point. Because b = vwall/γ − h/2 ≈ 13.05 − 8.9, a few-percent error in the central shear rate (0.0383) moves b = 4.15 σ by 10% or more. That is larger than the scatter of the clean, R²=1.000 profile in day1_vx.profile. Halving vwall should cut the heating about fourfold, and the longer equilibration should keep the transient out of the average. That run's total of 600,000 steps is within the 880,000 allowed.

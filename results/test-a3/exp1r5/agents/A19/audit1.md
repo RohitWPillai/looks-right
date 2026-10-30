@@ -1,0 +1,4 @@
+verdict: trusted
+run: none
+cause: The run reached steady state: heat into the hot wall and out of the cold wall agree within 1%, and the production temperature only wanders, it does not drift. The 1.5x gap between G_bot and G_top is several times the run's own scatter (about 10%), so it reflects the two wall temperatures, not noise, and the analysis note's call for replicas would not change the result.
+evidence: analysis.out reports G_bot=0.623 (dT=0.078, J=0.0486) and G_top=0.407 (dT=0.118, J=0.0481), heat 14.70/14.55 per unit time (1.0% imbalance), and a fluid-interior fit R^2=0.972. day1_heat.dat in 10k-step blocks gives hot-wall power 16.8/12.1/16.2/13.1 and cold-wall power 10.9/11.4/20.0/13.8 (standard error about 8–15%). In log.lammps the production temperature stays between 0.913 and 0.95 and ends at 0.915. day1_Tz.profile shows a smooth linear interior from 1.196 to 1.033 and measured wall temperatures of 1.29 and 0.90–0.91.

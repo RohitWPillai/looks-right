@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: Weakening the fluid Langevin coupling from tdamp 0.5 to 5.0, with the same seed and setup, brought the mid-pore viscosity plateau down from 2.528 to 2.104, which is the bulk LJ value. That drop of about 0.42 (17%) is several times the ~±0.05–0.1 seed scatter, so the strong thermostat was inflating the original number, and the new run stays at T* ≈ 1.0.
+evidence: original/analysis.out gives a plateau of 2.528 (pore-centre density 0.790) and new/analysis.out gives 2.104 (pore-centre 0.791, bulk ~2.13); new/command.txt has `-var seed 11 -var tdamp 5.0` and new/log.lammps lines 294–295 show `fix fth fluid langevin 1.0 1.0 5.0 14`; in new/log.lammps c_Tprof stays at about 0.97–1.04 through equilibration and 1.016–1.029 in production (steps 100000–200000), so it did not heat; both runs completed 100000 + 200000 steps with 4097 atoms.

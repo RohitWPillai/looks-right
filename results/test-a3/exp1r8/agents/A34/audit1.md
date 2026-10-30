@@ -1,0 +1,4 @@
+verdict: untrusted
+run: vwall=0.25 nequil=60000 nprod=220000
+cause: Shear heating with the weak wall–fluid coupling keeps the fluid at about T* 1.10, not the 1.0 the purpose states. The fluid was also still warming for roughly the first 15000 production steps, and those steps are inside the average. Halving the wall speed cuts the heating fourfold, and the longer equilibration moves the warm-up out of the averaged window.
+evidence: analysis.out reports η=1.194, pxz=-0.0652, dvx/dz=0.0546 and fluid T(z) of about 1.10–1.13 against walls set to 1.0. In day1_KEz.profile the centre <ke> is 1.64 at vx≈0, which gives T≈1.10. In log.lammps the thermo temp climbs from 0.84 to about 0.965 over production steps 0–20000 before it levels off. In day1_stress.dat 501 samples with a standard deviation of about 0.055 put the scatter on pxz at roughly 4%, so a temperature 10% too high matters.

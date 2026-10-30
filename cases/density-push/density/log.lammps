@@ -1,0 +1,412 @@
+LAMMPS (22 Jul 2025 - Update 5)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# =====================================================================
+#  NEMD Summer School 2026 - Day 1 hands-on
+#  MEASUREMENT: interfacial density / layering
+#
+#  How much does a liquid layer up against a solid wall? Seed the fluid
+#  at rho_f and read the density profile rho(z): a flat bulk in the
+#  middle, oscillating layers near each wall.
+#
+#  Run from this folder via the Cirrus wrapper:
+#     ../submit.sh density.in        (locally: lmp_serial -in density.in)
+#  then: python analyse_density.py
+#
+#  This file sets its case parameters, then includes the shared setup with
+#  `include ../shared_setup.lmp` (the LJ channel every Day-1 run shares).
+# =====================================================================
+
+# ---- case parameters (this measurement's settings; -var still overrides) ----
+variable Tbot   index 1.0      # isothermal walls (no thermal gradient)
+variable Ttop   index 1.0
+variable nequil index 20000    # equilibration steps
+variable nprod  index 50000    # production steps (multiple of 100)
+variable binw   index 0.1      # density bin width (sigma): 0.1 resolves the near-wall layers; coarsen to wash them out
+
+include ../shared_setup.lmp
+# #####################################################################
+# ##  SHARED SETUP  -  the LJ channel every Day-1 run includes        ##
+# ##  A Lennard-Jones liquid between two FCC walls, periodic in x, y,  ##
+# ##  with the walls capping z. Each measurement's input file sets    ##
+# ##  its own Tbot / Ttop / nequil / nprod ABOVE its                  ##
+# ##  `include ../shared_setup.lmp` line; this file then builds the   ##
+# ##  system from them. Walls are isothermal when Tbot == Ttop; the   ##
+# ##  conductance run sets a colder Ttop to impose a thermal gradient.##
+# #####################################################################
+#
+# This file EXPECTS Tbot, Ttop, nequil and nprod to be already defined by
+# the including script (see any of the four <measurement>.in files). The
+# wall-bath `tally yes` heat accounting below is read only by conductance.
+#
+# ---- parameters (override any with -var NAME value) ----
+variable Lx_t    index 24.0    # target box x (sigma); snapped to wall lattice below
+variable Ly_t    index 12.0    # target box y
+variable Lz_t    index 24.0    # target box z (walls + channel)
+variable wall_th index 3.0     # wall thickness each side (sigma)
+variable drive_th index 1.0    # outer rigid anchor-layer thickness (sigma)
+variable gap     index 0.3     # initial wall-fluid seeding gap (sigma)
+variable rho_w   index 1.0     # wall number density (FCC)
+variable rho_f   index 0.8     # fluid seeding density
+variable eps_ww  index 10.0    # stiff wall-wall LJ: keeps the wall crystalline
+variable eps_wf  index 0.6     # wall-fluid LJ coupling (wetting / slip parameter)
+variable rcut    index 2.5     # LJ cutoff (sigma)
+variable tdamp   index 0.5     # Langevin damping time (tau)
+variable dt      index 0.005   # timestep (tau)
+variable seed    index 90187   # RNG seed
+variable dump    index 0       # -var dump 1 -> write a VMD trajectory (day1_traj.xyz) for orientation; off by default
+
+# ---- derived geometry (snap box to whole FCC lattice constants) ----
+variable aw    equal (4.0/v_rho_w)^(1.0/3.0)   # FCC lattice constant
+variable Lx    equal round(v_Lx_t/v_aw)*v_aw
+variable Ly    equal round(v_Ly_t/v_aw)*v_aw
+variable Lz    equal round(v_Lz_t/v_aw)*v_aw
+variable zwlo  equal v_wall_th                 # top face of bottom wall
+variable zwhi  equal v_Lz-v_wall_th            # bottom face of top wall
+variable zdlo  equal v_drive_th                # top of bottom anchor layer
+variable zdhi  equal v_Lz-v_drive_th           # bottom of top anchor layer
+variable fllo  equal v_wall_th+v_gap           # first fluid plane
+variable flhi  equal v_zwhi-v_gap              # last fluid plane
+variable seed1 equal v_seed+3                  # distinct RNG streams per call site
+variable seed2 equal v_seed+7
+variable nrep  equal floor(v_nprod/100)        # ave/chunk: samples per block
+variable nfreq equal 100*v_nrep                # averaging window (<= nprod for nprod >= 100)
+# the averaging window needs nprod >= 100; a shorter (smoke) run gives a
+# zero-width window -> fail fast with a clear message, not a cryptic one.
+if "${nprod} < 100" then "print 'ERROR: nprod must be >= 100 (the averaging window)'" "quit 1"
+
+# ---- system: box, walls (type 2/3), fluid (type 1) ----
+units      lj
+atom_style atomic
+boundary   p p f                               # solid walls cap z; periodic x,y
+region     sim block 0 ${Lx} 0 ${Ly} 0 ${Lz} units box
+region     sim block 0 23.811015779523 0 ${Ly} 0 ${Lz} units box
+region     sim block 0 23.811015779523 0 12.6992084157456 0 ${Lz} units box
+region     sim block 0 23.811015779523 0 12.6992084157456 0 23.811015779523 units box
+lattice    fcc ${rho_w}
+lattice    fcc 1.0
+Lattice spacing in x,y,z = 1.5874011 1.5874011 1.5874011
+create_box 3 sim
+Created orthogonal box = (0 0 0) to (23.811016 12.699208 23.811016)
+  2 by 2 by 2 MPI processor grid
+region     rbot block INF INF INF INF 0.0     ${zwlo} units box
+region     rbot block INF INF INF INF 0.0     3 units box
+region     rtop block INF INF INF INF ${zwhi} ${Lz}   units box
+region     rtop block INF INF INF INF 20.811015779523 ${Lz}   units box
+region     rtop block INF INF INF INF 20.811015779523 23.811015779523   units box
+create_atoms 2 region rbot                     # type 2 = bottom wall
+Created 960 atoms
+  using lattice units in orthogonal box = (0 0 0) to (23.811016 12.699208 23.811016)
+  create_atoms CPU = 0.000 seconds
+create_atoms 3 region rtop                     # type 3 = top wall
+Created 960 atoms
+  using lattice units in orthogonal box = (0 0 0) to (23.811016 12.699208 23.811016)
+  create_atoms CPU = 0.000 seconds
+lattice    fcc ${rho_f}
+lattice    fcc 0.8
+Lattice spacing in x,y,z = 1.7099759 1.7099759 1.7099759
+region     rfl  block INF INF INF INF ${fllo} ${flhi} units box
+region     rfl  block INF INF INF INF 3.3 ${flhi} units box
+region     rfl  block INF INF INF INF 3.3 20.511015779523 units box
+create_atoms 1 region rfl                      # type 1 = fluid
+Created 4200 atoms
+  using lattice units in orthogonal box = (0 0 0) to (23.811016 12.699208 23.811016)
+  create_atoms CPU = 0.000 seconds
+mass       1 1.0
+mass       2 1.0
+mass       3 1.0
+
+# ---- interactions (explicit pair_coeff, no mixing) ----
+pair_style lj/cut ${rcut}
+pair_style lj/cut 2.5
+pair_coeff 1 1 1.0       1.0                   # fluid-fluid
+pair_coeff 2 2 ${eps_ww} 1.0                   # wall-wall (bottom)
+pair_coeff 2 2 10.0 1.0                   
+pair_coeff 3 3 ${eps_ww} 1.0                   # wall-wall (top)
+pair_coeff 3 3 10.0 1.0                   
+pair_coeff 2 3 ${eps_ww} 1.0                   # wall-wall (cross)
+pair_coeff 2 3 10.0 1.0                   
+pair_coeff 1 2 ${eps_wf} 1.0                   # fluid-wall (bottom)
+pair_coeff 1 2 0.6 1.0                   
+pair_coeff 1 3 ${eps_wf} 1.0                   # fluid-wall (top)
+pair_coeff 1 3 0.6 1.0                   
+neighbor     0.3 bin
+group        fluid type 1
+4200 atoms in group fluid
+delete_atoms overlap 0.9 fluid all             # clear seeding overlaps (fluid only)
+System init for delete_atoms ...
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 2.8
+  ghost atom cutoff = 2.8
+  binsize = 1.4, bins = 18 10 18
+  2 neighbor lists, perpetual/occasional/extra = 1 1 0
+  (1) command delete_atoms, occasional
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+  (2) pair lj/cut, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Deleted 280 atoms, new total = 5840
+
+# ---- wall heat baths: outer 1-sigma layer = rigid anchor (no drift),
+#      inner layer = Langevin bath (the heat-exchange surface) ----
+group   wbot type 2
+960 atoms in group wbot
+group   wtop type 3
+960 atoms in group wtop
+region  rbot_d block INF INF INF INF 0.0     ${zdlo} units box
+region  rbot_d block INF INF INF INF 0.0     1 units box
+region  rtop_d block INF INF INF INF ${zdhi} ${Lz}  units box
+region  rtop_d block INF INF INF INF 22.811015779523 ${Lz}  units box
+region  rtop_d block INF INF INF INF 22.811015779523 23.811015779523  units box
+group   drive_bot region rbot_d
+480 atoms in group drive_bot
+group   drive_top region rtop_d
+480 atoms in group drive_top
+group   drive    union drive_bot drive_top
+960 atoms in group drive
+group   bath_bot subtract wbot drive_bot
+480 atoms in group bath_bot
+group   bath_top subtract wtop drive_top
+480 atoms in group bath_top
+
+velocity all   create ${Tbot} ${seed} mom yes rot yes dist gaussian
+velocity all   create 1.0 ${seed} mom yes rot yes dist gaussian
+velocity all   create 1.0 11 mom yes rot yes dist gaussian
+velocity drive set 0.0 0.0 0.0                 # anchor still by default (sheared scripts override)
+fix     nve  all  nve
+fix     pin  drive setforce 0.0 0.0 0.0        # rigid wall anchor
+fix     bbot bath_bot langevin ${Tbot} ${Tbot} ${tdamp} ${seed1} tally yes
+fix     bbot bath_bot langevin 1.0 ${Tbot} ${tdamp} ${seed1} tally yes
+fix     bbot bath_bot langevin 1.0 1.0 ${tdamp} ${seed1} tally yes
+fix     bbot bath_bot langevin 1.0 1.0 0.5 ${seed1} tally yes
+fix     bbot bath_bot langevin 1.0 1.0 0.5 14 tally yes
+fix     btop bath_top langevin ${Ttop} ${Ttop} ${tdamp} ${seed2} tally yes
+fix     btop bath_top langevin 1.0 ${Ttop} ${tdamp} ${seed2} tally yes
+fix     btop bath_top langevin 1.0 1.0 ${tdamp} ${seed2} tally yes
+fix     btop bath_top langevin 1.0 1.0 0.5 ${seed2} tally yes
+fix     btop bath_top langevin 1.0 1.0 0.5 18 tally yes
+fix     boxwall all wall/reflect zlo EDGE zhi EDGE   # bounce stray atoms off z-faces
+timestep ${dt}
+timestep 0.005
+thermo       1000
+thermo_style custom step temp pe press
+minimize     1.0e-4 1.0e-6 1000 10000          # settle seeding overlaps
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 2.8
+  ghost atom cutoff = 2.8
+  binsize = 1.4, bins = 18 10 18
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair lj/cut, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 5.015 | 5.016 | 5.016 Mbytes
+   Step          Temp          PotEng         Press     
+         0   0.82959557    -24.705507     -9.8425784    
+         2   0.82959557    -24.909873     -7.7694973    
+Loop time of 0.00136822 on 8 procs for 2 steps with 5840 atoms
+
+100.0% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -24.7055072389337  -24.9095143475341   -24.909873274649
+  Force two-norm initial, final = 686.33924 232.95561
+  Force max component initial, final = 30.177897 7.3570839
+  Final line search alpha, max atom move = 0.004119814 0.030309817
+  Iterations, force evaluations = 2 4
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.00083163 | 0.00098616 | 0.0011095  |   0.0 | 72.08
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00017604 | 0.00030014 | 0.00045463 |   0.0 | 21.94
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 3.708e-06  | 4.3642e-06 | 5.042e-06  |   0.0 |  0.32
+Other   |            | 7.756e-05  |            |       |  5.67
+
+Nlocal:            730 ave         778 max         686 min
+Histogram: 2 0 0 2 0 0 2 0 0 2
+Nghost:        1772.75 ave        1885 max        1657 min
+Histogram: 1 1 1 1 0 1 0 1 1 1
+Neighs:          25747 ave       29581 max       22420 min
+Histogram: 1 1 0 1 2 1 0 0 1 1
+
+Total # of neighbors = 205976
+Ave neighs/atom = 35.269863
+Neighbor list builds = 0
+Dangerous builds = 0
+reset_timestep 0
+# --- end of shared setup; each <measurement>.in continues below with its
+#     own measurement section ---
+
+# =====================================================================
+#  MEASUREMENT: interfacial density
+#  Walls still, isothermal. Equilibrate, then time-average a fine
+#  density profile rho(z) across the channel.
+# =====================================================================
+run ${nequil}
+run 20000
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 3.89 | 3.891 | 3.891 Mbytes
+   Step          Temp          PotEng         Press     
+         0   0.82959557    -24.909873     -7.7694973    
+      1000   0.59143069    -24.328162     -3.8379355    
+      2000   0.60854075    -24.319496     -3.7684233    
+      3000   0.5791935     -24.24085      -4.1835027    
+      4000   0.59292493    -24.258731     -4.0452398    
+      5000   0.61811713    -24.246631     -3.810329     
+      6000   0.60470204    -24.214599     -3.8233067    
+      7000   0.61188119    -24.186292     -4.0942612    
+      8000   0.6148757     -24.171818     -4.0615363    
+      9000   0.62781348    -24.162797     -4.1384003    
+     10000   0.62701337    -24.141547     -3.8941971    
+     11000   0.63168125    -24.120097     -4.0197812    
+     12000   0.63398772    -24.096754     -4.1676062    
+     13000   0.6287957     -24.055956     -3.9326137    
+     14000   0.64747325    -24.065194     -4.1339502    
+     15000   0.63991269    -24.035515     -3.9473613    
+     16000   0.66356183    -24.025331     -4.0001763    
+     17000   0.63918796    -23.984469     -4.0223998    
+     18000   0.65897903    -23.961394     -3.9974646    
+     19000   0.65946599    -23.953733     -4.0246483    
+     20000   0.67260719    -23.942009     -4.112784     
+Loop time of 4.4593 on 8 procs for 20000 steps with 5840 atoms
+
+Performance: 1937524.528 tau/day, 4485.010 timesteps/s, 26.192 Matom-step/s
+100.0% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 1.6473     | 1.9266     | 2.2575     |  17.6 | 43.20
+Neigh   | 1.0052     | 1.1967     | 1.4116     |  16.7 | 26.84
+Comm    | 0.62036    | 1.1258     | 1.591      |  39.5 | 25.25
+Output  | 0.00010788 | 0.00013362 | 0.00017617 |   0.0 |  0.00
+Modify  | 0.13692    | 0.14629    | 0.15468    |   1.6 |  3.28
+Other   |            | 0.06378    |            |       |  1.43
+
+Nlocal:            730 ave         759 max         682 min
+Histogram: 1 0 0 1 0 1 1 1 1 2
+Nghost:           1725 ave        1776 max        1696 min
+Histogram: 1 3 0 1 1 0 0 1 0 1
+Neighs:        24089.2 ave       26036 max       22856 min
+Histogram: 1 3 1 0 0 0 0 1 1 1
+
+Total # of neighbors = 192714
+Ave neighs/atom = 32.998973
+Neighbor list builds = 2385
+Dangerous builds = 0
+reset_timestep 0
+
+variable nrho  equal round(v_Lz/v_binw)        # bin count from the chosen bin width (binw, default 0.1 sigma)
+variable dzrho equal v_Lz/v_nrho
+compute crho fluid chunk/atom bin/1d z lower ${dzrho} units box
+compute crho fluid chunk/atom bin/1d z lower 0.992125657480125 units box
+fix     frho fluid ave/chunk 100 ${nrep} ${nfreq} crho density/number         file day1_density.profile
+fix     frho fluid ave/chunk 100 500 ${nfreq} crho density/number         file day1_density.profile
+fix     frho fluid ave/chunk 100 500 50000 crho density/number         file day1_density.profile
+
+# optional orientation trajectory for VMD/OVITO (production only; off by default, pass -var dump 1).
+# element names are only for viewer colouring; the model is a generic LJ channel.
+if "${dump} > 0" then   "dump dvmd all xyz 1000 day1_traj.xyz"   "dump_modify dvmd element Ar Kr Kr sort id"
+
+run ${nprod}
+run 50000
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 4.141 | 4.142 | 4.143 Mbytes
+   Step          Temp          PotEng         Press     
+         0   0.67260719    -23.942009     -4.112784     
+      1000   0.68670847    -23.940086     -4.124352     
+      2000   0.69121842    -23.930357     -3.9423907    
+      3000   0.69422459    -23.908144     -3.9981589    
+      4000   0.70367634    -23.915745     -4.087399     
+      5000   0.72236713    -23.922386     -3.9125136    
+      6000   0.72441639    -23.892112     -3.7687562    
+      7000   0.73613341    -23.885923     -3.8116784    
+      8000   0.73516803    -23.862214     -3.6729079    
+      9000   0.76199603    -23.866332     -3.7869718    
+     10000   0.76764677    -23.86143      -3.5936535    
+     11000   0.76314051    -23.836035     -3.4961074    
+     12000   0.77937678    -23.862041     -3.5444406    
+     13000   0.77312718    -23.850097     -3.4350617    
+     14000   0.77932163    -23.841403     -3.3975087    
+     15000   0.79417968    -23.841243     -3.7317001    
+     16000   0.78810438    -23.858767     -3.6972578    
+     17000   0.79134285    -23.841537     -3.4462289    
+     18000   0.81403192    -23.837923     -3.3666993    
+     19000   0.80159772    -23.825021     -3.2735616    
+     20000   0.8047425     -23.83232      -3.4606245    
+     21000   0.81219433    -23.822469     -3.3640271    
+     22000   0.82479519    -23.819905     -3.5251827    
+     23000   0.82260509    -23.818953     -3.5767547    
+     24000   0.82613182    -23.820045     -3.3820389    
+     25000   0.83449446    -23.825906     -3.4914735    
+     26000   0.8211983     -23.805763     -3.4025062    
+     27000   0.81972234    -23.798065     -3.3115403    
+     28000   0.8240836     -23.806595     -3.3010715    
+     29000   0.8252157     -23.795765     -3.2950689    
+     30000   0.8139293     -23.802744     -3.1820534    
+     31000   0.82553765    -23.8109       -3.3865751    
+     32000   0.81562508    -23.792161     -3.1514043    
+     33000   0.83636024    -23.799504     -3.3147544    
+     34000   0.83311749    -23.816997     -3.3500296    
+     35000   0.81840944    -23.798147     -3.341937     
+     36000   0.81479305    -23.805663     -3.3588754    
+     37000   0.82445275    -23.79252      -3.3122221    
+     38000   0.84798132    -23.819477     -3.3585569    
+     39000   0.83238793    -23.79431      -3.2990899    
+     40000   0.82772852    -23.79274      -3.2308774    
+     41000   0.8408932     -23.799517     -3.2306071    
+     42000   0.83322553    -23.789458     -3.2829962    
+     43000   0.85088483    -23.796261     -3.2190483    
+     44000   0.84896066    -23.797017     -3.3632822    
+     45000   0.84137292    -23.802157     -3.2535868    
+     46000   0.84476141    -23.809171     -3.3868717    
+     47000   0.83889017    -23.791499     -3.1989715    
+     48000   0.84277216    -23.811417     -3.4553863    
+     49000   0.83528877    -23.798035     -3.2379329    
+     50000   0.8370155     -23.801994     -3.0442755    
+Loop time of 11.3051 on 8 procs for 50000 steps with 5840 atoms
+
+Performance: 1910646.253 tau/day, 4422.792 timesteps/s, 25.829 Matom-step/s
+100.0% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 4.6975     | 4.945      | 5.2968     |   9.7 | 43.74
+Neigh   | 3.0713     | 3.3453     | 3.7167     |  13.8 | 29.59
+Comm    | 1.6895     | 2.4465     | 2.9765     |  31.9 | 21.64
+Output  | 0.00033271 | 0.00042379 | 0.00057296 |   0.0 |  0.00
+Modify  | 0.35554    | 0.36853    | 0.38167    |   1.5 |  3.26
+Other   |            | 0.1993     |            |       |  1.76
+
+Nlocal:            730 ave         757 max         703 min
+Histogram: 1 0 0 2 0 2 2 0 0 1
+Nghost:        1707.75 ave        1741 max        1692 min
+Histogram: 2 2 1 0 1 0 1 0 0 1
+Neighs:        24175.6 ave       25193 max       22833 min
+Histogram: 1 0 2 0 1 0 0 1 0 3
+
+Total # of neighbors = 193405
+Ave neighs/atom = 33.117295
+Neighbor list builds = 6739
+Dangerous builds = 0
+print "Done. Analyse with:  python analyse_density.py"
+Done. Analyse with:  python analyse_density.py
+Total wall time: 0:00:15

@@ -1,0 +1,8 @@
+Lz 9.7623031559045951866
+wall_th 3.0
+width 5
+w_meas 5
+z_bot_inner 2.3811015779523
+z_top_inner 7.3811015779523
+gforce 0.05
+binw 0.1

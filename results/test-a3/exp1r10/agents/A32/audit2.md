@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The new run uses the input's intended 0.1 σ bins with the same seed and settings, and it resolves clear, symmetric wall layering far larger than the bulk scatter, so the original's "no layering" result came from its 1.0 σ bins and the new profile does what the purpose asks.
+evidence: new/command.txt `-var binw 0.1 -var seed 11`. new/day1_density.profile has 238 bins of about 0.1 σ, with contact peaks of 1.481 (z≈3.25) and 1.463 (z≈20.56), first troughs of 0.367 and 0.374, second peaks of 0.976 and 0.969, third peaks of 0.827 and 0.808, and a flat bulk of 0.70–0.75 (about ±0.01). new/analysis.out gives bulk ≈0.725 and a layering contrast of 2.04x, against 1.02x in original/analysis.out. new/log.lammps keeps Tbot/Ttop at 1.0, completes the 20000+50000 steps and has no warnings.

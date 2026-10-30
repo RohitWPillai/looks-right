@@ -1,0 +1,10 @@
+
+Sheet 2: slip length
+    central shear rate dvx/dz = +0.0539  (R^2=1.000)
+    no-slip reference 2*vwall/h = +0.0561  (slope if the liquid
+      stuck to the walls; slip makes the measured slope smaller)
+    fluid temperature = 1.12  (set point 1.0)
+    slip length b ~ 0.363 sigma  (symmetric walls -> both equal),
+      measured to the geometric wall face (z=3.00/20.81).
+    -> b > 0: the liquid SLIPS along the wall.
+    plot -> day1_slip.png

@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: With nequil restored to the input's own 40000, the run reached steady state: heat in matches heat out, both walls carry the same J, and the cumulative-heat fits no longer trigger the non-steady warning; the 1.5x gap between G_bot and G_top is allowed for walls held at different temperatures, and the purpose asks for each wall's value separately.
+evidence: new/command.txt shows `-var nequil 40000 -var seed 11` (same seed as the original). new/log.lammps shows 40000 equilibration and 40000 production steps. new/analysis.out shows a 1.0% imbalance (14.70 in vs 14.55 out, against 53.3% in the original), J=0.0486/0.0481, interior R^2=0.972, no WARNING lines, and G_bot=0.623 (dT=0.078) and G_top=0.407 (dT=0.118), against the transient 0.302/0.536 in original/analysis.out.

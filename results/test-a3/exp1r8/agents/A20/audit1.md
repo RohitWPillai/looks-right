@@ -1,0 +1,4 @@
+verdict: unresolved
+run: tdamp=5.0
+cause: The fluid thermostat uses about 1σ temperature bins with a strong drag (`tdamp` 0.5), which pulls the flow towards each bin's average and adds roughly ρΔz²/(12·tdamp) ≈ 0.13 or more of artificial viscosity; the mid-pore viscosity of 2.53 is about 19% above bulk even though the pore-centre density (0.79) is bulk-like, so a run with 10× weaker coupling would show whether the plateau drops by far more than its scatter (about ±0.04).
+evidence: `analysis.out` (plateau 2.528 vs bulk 2.13; density mean 0.820, centre 0.790); `shared_setup.lmp:35,152-156` (`tdamp` 0.5, `nzT`=round(lz)=15 bins over lz 14.76, Langevin with temp/profile); `poiseuille_w10.profile` (centre vx ≈ 0.157, about 0.007 bin-to-bin scatter over ~88 fluid bins, so about 1.6% curvature error); `log.lammps` (c_Tprof ≈ 1.00 ± 0.02, no lost atoms, 0 dangerous builds); `poiseuille_w10.png` (flat η(z) built from the parabola fit).

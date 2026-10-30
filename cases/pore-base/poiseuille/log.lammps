@@ -1,0 +1,736 @@
+LAMMPS (22 Jul 2025 - Update 5)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# =====================================================================
+#  NEMD Summer School 2026 - Day 2 hands-on  (Part 1: the slit-pore)
+#  MEASUREMENT: local viscosity profile and the breakdown of Newton's law
+#
+#  Drive a confined LJ liquid with a body force along x (Poiseuille flow),
+#  measure vx(z) and the mass density rho_m(z). The analyser forms
+#     eta(z) = -P_xz(z) / (dvx/dz),   P_xz(z) = +g * integral_0^z rho_m dz'
+#  (momentum balance from the centreline). `width` is the LITERAL pore width
+#  in sigma (the setup displaces the top wall to set it exactly). A WIDE pore
+#  (-var width 10) -> vx(z) a parabola and eta(z) a flat plateau near the
+#  bulk shear viscosity. A NARROW pore (-var width 4) -> the density layers fill
+#  the whole pore, P_xz(z) follows the layering, and eta(z) has no single
+#  plateau: a local Newtonian viscosity no longer describes the liquid
+#  (Travis, Todd & Evans, PRE 55, 4288).
+#
+#  Run FROM THIS FOLDER (so `include ../shared_setup.lmp` resolves):
+#     ../submit.sh poiseuille.in                  (locally: lmp_serial -in poiseuille.in)
+#     ../submit.sh poiseuille.in -var width 4     (the narrow-pore Push)
+#  then: python analyse_poiseuille.py
+# =====================================================================
+
+# ---- case parameters (this measurement's settings; -var still overrides) ----
+variable T      index 1.0       # single-phase dense-liquid temperature (T* = 1.0)
+variable width  index 10        # TARGET inner-plane separation; Push: -var width 4
+variable nequil index 100000    # equilibration steps
+variable nprod  index 200000    # production steps (multiple of 100)
+
+# clear this width's outputs at the start, so a re-run after an interrupted/failed run
+# cannot leave stale poiseuille_w${width}.* for the analyser to read as this run's result.
+# (submit.sh does this for the SLURM path; this also covers the bare `lmp_serial -in` path.)
+shell rm -f poiseuille_w${width}.profile poiseuille_w${width}.params.txt poiseuille_w${width}.png poiseuille_w${width}_traj.xyz
+shell rm -f poiseuille_w10.profile poiseuille_w${width}.params.txt poiseuille_w${width}.png poiseuille_w${width}_traj.xyz
+shell rm -f poiseuille_w10.profile poiseuille_w10.params.txt poiseuille_w${width}.png poiseuille_w${width}_traj.xyz
+shell rm -f poiseuille_w10.profile poiseuille_w10.params.txt poiseuille_w10.png poiseuille_w${width}_traj.xyz
+shell rm -f poiseuille_w10.profile poiseuille_w10.params.txt poiseuille_w10.png poiseuille_w10_traj.xyz
+
+include ../shared_setup.lmp
+# #####################################################################
+# ##  SHARED SETUP  (Day-2 Part 1)  -  the confined slit-pore setup     ##
+# ##  A Lennard-Jones liquid confined between two FCC walls, driven by  ##
+# ##  a body force along x (Poiseuille flow). REUSES Day-1's wall setup ##
+# ##  (FCC rho_w=1.0, 3 sigma walls, eps_ww=10, eps_wf=0.6, types 2/3)  ##
+# ##  but differs in three ways:                                        ##
+# ##    1. the walls are FROZEN - only the fluid is time-integrated and ##
+# ##       the wall atoms are pinned at zero velocity (NO wall bath);   ##
+# ##    2. the driving is a body force (set in poiseuille.in, not here);##
+# ##    3. the fluid thermostat is PROFILE-UNBIASED (temp/profile) so   ##
+# ##       it cannot bend the parabolic vx(z) being measured.           ##
+# #####################################################################
+#
+# EXPECTS  T, nequil, nprod  and  width  to be defined by the including .in
+# file (see poiseuille.in).  `width` is the requested LITERAL inner wall-plane
+# separation in sigma: the construction box is snapped to whole FCC lattice
+# constants only for WALL CREATION, then the frozen top wall is displaced and
+# the box capped (below) so the actual separation w_meas equals `width` exactly.
+# w_meas is still measured and written to the params file as a guard.
+#
+# ---- parameters (override any with -var NAME value) ----
+variable Lx_t    index 24.0    # target box x (sigma); snapped to wall lattice below
+variable Ly_t    index 12.0    # target box y
+variable width   index 10      # literal inner wall-plane separation (sigma); Push: -var width 4
+variable wall_th index 3.0     # wall thickness each side (sigma)
+variable gap     index 0.3     # wall-fluid seeding gap (sigma)
+variable dexcl   index 0.5     # wall-fluid steric exclusion PER SIDE (sigma): the fluid is held off each
+#                                wall, so the accessible width is w_acc = w_meas - 2*dexcl. The atom count is
+#                                set over w_acc (NOT w_meas) so the in-pore LIQUID density is ~rho_f; seeding
+#                                over the full w_meas over-packs narrow pores into a quasi-solid (rho>1.5).
+variable rho_w   index 1.0     # wall number density (FCC)
+variable rho_f   index 0.8     # fluid density (single-phase dense liquid)
+variable eps_ww  index 10.0    # stiff wall-wall LJ: keeps the wall crystalline
+variable eps_wf  index 0.6     # wall-fluid LJ coupling (the layering-strength parameter)
+variable rcut    index 2.5     # LJ cutoff (sigma)
+variable tdamp   index 0.5     # Langevin damping time (tau)
+variable dt      index 0.005   # timestep (tau)
+variable seed    index 90187   # RNG seed
+variable dump    index 0       # -var dump 1 -> write a trajectory for orientation; off by default
+variable margin  index 1.0     # z construction buffer (sigma); removed by change_box after the wall move
+variable npush   index 8000    # soft-pushoff steps that relax the count-based random-seed overlaps
+
+# ---- derived geometry (snap box to whole FCC lattice constants) ----
+# The box is OVERSIZED in z by `margin` so the snap cannot round Lz below pore +
+# walls and the top-wall move (below) is always downward; change_box then caps z
+# at the wall face. The exact pore width comes from displacing the (frozen) top
+# wall, not from the snap.
+variable aw    equal (4.0/v_rho_w)^(1.0/3.0)            # FCC lattice constant
+variable Lz_t  equal v_width+2.0*v_wall_th+v_margin    # target construction box z (pore + 2 walls + buffer)
+variable Lx    equal round(v_Lx_t/v_aw)*v_aw
+variable Ly    equal round(v_Ly_t/v_aw)*v_aw
+variable Lz    equal round(v_Lz_t/v_aw)*v_aw
+variable seed1 equal v_seed+3
+variable nrep  equal floor(v_nprod/100)                # ave/chunk: samples per block
+variable nfreq equal 100*v_nrep                        # averaging window (<= nprod for nprod >= 100)
+if "${nprod} < 100" then "print 'ERROR: nprod must be >= 100 (the averaging window)'" "quit 1"
+
+# ---- system: box, walls (type 2 bottom / 3 top), fluid (type 1) ----
+units      lj
+atom_style atomic
+boundary   p p f                                       # solid walls cap z; periodic x,y
+region     sim block 0 ${Lx} 0 ${Ly} 0 ${Lz} units box
+region     sim block 0 23.811015779523 0 ${Ly} 0 ${Lz} units box
+region     sim block 0 23.811015779523 0 12.6992084157456 0 ${Lz} units box
+region     sim block 0 23.811015779523 0 12.6992084157456 0 17.4614115716502 units box
+lattice    fcc ${rho_w}
+lattice    fcc 1.0
+Lattice spacing in x,y,z = 1.5874011 1.5874011 1.5874011
+create_box 3 sim
+Created orthogonal box = (0 0 0) to (23.811016 12.699208 17.461412)
+  2 by 2 by 2 MPI processor grid
+region     rbot block INF INF INF INF 0.0                  ${wall_th} units box
+region     rbot block INF INF INF INF 0.0                  3.0 units box
+region     rtop block INF INF INF INF $(v_Lz-v_wall_th)    ${Lz}     units box
+region     rtop block INF INF INF INF 14.461411571650199193    ${Lz}     units box
+region     rtop block INF INF INF INF 14.461411571650199193    17.4614115716502     units box
+create_atoms 2 region rbot                             # type 2 = bottom wall
+Created 960 atoms
+  using lattice units in orthogonal box = (0 0 0) to (23.811016 12.699208 17.461412)
+  create_atoms CPU = 0.000 seconds
+create_atoms 3 region rtop                             # type 3 = top wall
+Created 960 atoms
+  using lattice units in orthogonal box = (0 0 0) to (23.811016 12.699208 17.461412)
+  create_atoms CPU = 0.000 seconds
+group   wbot type 2
+960 atoms in group wbot
+group   wtop type 3
+960 atoms in group wtop
+variable nwbot0 equal $(count(wbot))                   # SNAPSHOT wall counts now ($() = immediate, not lazy)
+variable nwbot0 equal 960                   
+variable nwtop0 equal $(count(wtop))                   #   so the wall-count guard below can detect a lost plane
+variable nwtop0 equal 960                   
+
+# ---- Set the inner wall-plane separation to `width` by displacing the (frozen)
+#      top wall, then cap the box. The FCC snap quantises the wall separation in
+#      steps of ~a_w, so width 3 and 4 would collapse to the same pore. Instead
+#      measure the bottom inner plane, move the top wall down so the gap equals
+#      `width`, then set zhi to bound(wtop,zmax)+1e-4: with `boundary p p f` a
+#      wall atom exactly on the zhi face can be dropped on reneighboring, so the
+#      cap is placed above the outer plane, not on it. The wall-count guard below
+#      would catch a lost plane; the offset avoids it in the first place. ----
+variable zbi   equal bound(wbot,zmax)                  # inner face of bottom wall (fixed)
+variable zti0  equal bound(wtop,zmin)                  # top inner plane BEFORE the move
+displace_atoms wtop move 0.0 0.0 $(v_zbi+v_width-v_zti0) units box
+displace_atoms wtop move 0.0 0.0 -2.6992084157456002202 units box
+Displacing atoms ...
+change_box all z final 0.0 $(bound(wtop,zmax)+1.0e-4) units box
+change_box all z final 0.0 14.762303155904591634 units box
+Changing box ...
+  orthogonal box = (0 0 0) to (23.811016 12.699208 14.762303)
+variable zti   equal bound(wtop,zmin)                  # re-measured: now = zbi + width exactly
+variable wmeas equal v_zti-v_zbi                        # ACTUAL inner-plane separation (= width)
+
+# ---- fluid: count-based seed at rho_f over the accessible pore width w_acc = w_meas - 2*dexcl.
+#      The liquid is held dexcl = 0.5 sigma off each wall, so it occupies w_acc, not the full
+#      inner-plane separation w_meas. Counting over w_meas would over-pack narrow
+#      pores (at w_meas=3 it gives rho ~ 1.7, a quasi-solid with layering peaks ~4,
+#      suppressing the flow). N = round(rho_f * Lx * Ly * w_acc) holds the in-pore liquid density
+#      ~rho_f across widths; the post-equilibration value is reported by the analyser. There is
+#      no delete_atoms, so the count is exact; the random-placement overlaps are relaxed by the
+#      soft pushoff below (count preserved). ----
+variable wacc equal v_wmeas-2.0*v_dexcl
+if "${wacc} < 1.0" then "print 'ERROR: accessible width < 1 sigma (pore too narrow for dexcl=${dexcl})'" "quit 1"
+variable Nf  equal round(v_rho_f*v_Lx*v_Ly*v_wacc)
+region     rfl block INF INF INF INF $(v_zbi+v_dexcl) $(v_zti-v_dexcl) units box   # seed inside the accessible zone
+region     rfl block INF INF INF INF 2.8811015779522999303 $(v_zti-v_dexcl) units box   
+region     rfl block INF INF INF INF 2.8811015779522999303 11.881101577952300374 units box   
+create_atoms 1 random ${Nf} ${seed} rfl                # exactly Nf fluid atoms (type 1)
+create_atoms 1 random 2177 ${seed} rfl                
+create_atoms 1 random 2177 11 rfl                
+Created 2177 atoms
+  using lattice units in orthogonal box = (0 0 0) to (23.811016 12.699208 14.762303)
+  create_atoms CPU = 0.000 seconds
+mass       1 1.0
+mass       2 1.0
+mass       3 1.0
+
+# ---- interactions (explicit pair_coeff, no mixing).  shift/tail = LAMMPS
+#      defaults = OFF, the same convention as Day-1. ----
+pair_style lj/cut ${rcut}
+pair_style lj/cut 2.5
+pair_modify shift no tail no
+pair_coeff 1 1 1.0       1.0                           # fluid-fluid
+pair_coeff 2 2 ${eps_ww} 1.0                           # wall-wall (bottom)
+pair_coeff 2 2 10.0 1.0                           
+pair_coeff 3 3 ${eps_ww} 1.0                           # wall-wall (top)
+pair_coeff 3 3 10.0 1.0                           
+pair_coeff 2 3 ${eps_ww} 1.0                           # wall-wall (cross)
+pair_coeff 2 3 10.0 1.0                           
+pair_coeff 1 2 ${eps_wf} 1.0                           # fluid-wall (bottom)
+pair_coeff 1 2 0.6 1.0                           
+pair_coeff 1 3 ${eps_wf} 1.0                           # fluid-wall (top)
+pair_coeff 1 3 0.6 1.0                           
+neighbor     0.3 bin
+neigh_modify delay 0
+group        fluid type 1
+2177 atoms in group fluid
+
+# ---- assert the wall move did NOT change a wall count (the check that catches a
+#      silently-deleted wall plane). Counts must be equal + unchanged. ----
+if "$(count(wbot)) != ${nwbot0} || $(count(wtop)) != ${nwtop0}" then "print 'ERROR: wall atom count changed (lost plane?)'" "quit 1"
+if "$(count(wbot)) != $(count(wtop))" then "print 'ERROR: asymmetric wall atom counts'" "quit 1"
+
+# ---- FROZEN walls + fluid-only dynamics.  The walls are STATIONARY boundaries: only the fluid
+#      is time-integrated, and the wall atoms are pinned at zero velocity. `fix setforce` on the
+#      walls is a redundant safeguard. ----
+group   walls union wbot wtop
+1920 atoms in group walls
+velocity all   create ${T} ${seed} mom yes rot yes dist gaussian
+velocity all   create 1.0 ${seed} mom yes rot yes dist gaussian
+velocity all   create 1.0 11 mom yes rot yes dist gaussian
+velocity walls set 0.0 0.0 0.0                         # pin the walls at rest
+fix     fzw  walls setforce 0.0 0.0 0.0                # zero the wall forces
+fix     fref fluid wall/reflect zlo EDGE zhi EDGE      # safety: keep stray fluid atoms in the box
+timestep ${dt}
+timestep 0.005
+
+# ---- SOFT PUSHOFF: the count-based seed places atoms at random, so they overlap. `nve/limit`
+#      caps each fluid atom's per-step displacement, so the overlaps relax WITHOUT exploding the
+#      system or losing atoms. A plain-temperature
+#      Langevin bath drains the overlap energy. (A `minimize` here would be unsafe: on a
+#      randomly-overlapping configuration the large pair forces move atoms across the box.) ----
+compute Tpush fluid temp
+fix     fpush fluid nve/limit 0.05
+fix     fthp  fluid langevin ${T} ${T} ${tdamp} ${seed1}
+fix     fthp  fluid langevin 1.0 ${T} ${tdamp} ${seed1}
+fix     fthp  fluid langevin 1.0 1.0 ${tdamp} ${seed1}
+fix     fthp  fluid langevin 1.0 1.0 0.5 ${seed1}
+fix     fthp  fluid langevin 1.0 1.0 0.5 14
+fix_modify fthp temp Tpush
+thermo       1000
+thermo_style custom step temp pe press
+run ${npush}
+run 8000
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 2.8
+  ghost atom cutoff = 2.8
+  binsize = 1.4, bins = 18 10 11
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair lj/cut, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 3.108 | 3.118 | 3.121 Mbytes
+   Step          Temp          PotEng         Press     
+         0   0.52377681     1.0135284e+14  3.7209445e+14
+      1000   0.53974711    -32.227603     -9.6245931    
+      2000   0.53312521    -32.249704     -9.6866262    
+      3000   0.55007554    -32.237535     -9.6477318    
+      4000   0.52404659    -32.222963     -9.5316629    
+      5000   0.55371803    -32.263418     -9.774267     
+      6000   0.5306926     -32.209021     -9.508455     
+      7000   0.52205508    -32.240595     -9.6510968    
+      8000   0.52368663    -32.252148     -9.6786537    
+Loop time of 1.18004 on 8 procs for 8000 steps with 4097 atoms
+
+Performance: 2928706.060 tau/day, 6779.412 timesteps/s, 27.775 Matom-step/s
+100.0% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.37966    | 0.44248    | 0.5346     |   7.0 | 37.50
+Neigh   | 0.25035    | 0.31148    | 0.3898     |   9.8 | 26.40
+Comm    | 0.18872    | 0.35533    | 0.47661    |  16.7 | 30.11
+Output  | 4.1582e-05 | 4.7526e-05 | 5.9834e-05 |   0.0 |  0.00
+Modify  | 0.04904    | 0.050951   | 0.053132   |   0.5 |  4.32
+Other   |            | 0.01976    |            |       |  1.67
+
+Nlocal:        512.125 ave         556 max         468 min
+Histogram: 2 0 0 2 0 1 1 0 0 2
+Nghost:         1365.5 ave        1409 max        1327 min
+Histogram: 2 0 1 0 1 2 0 0 1 1
+Neighs:        18155.1 ave       20864 max       15766 min
+Histogram: 1 0 1 2 1 0 1 1 0 1
+
+Total # of neighbors = 145241
+Ave neighs/atom = 35.450574
+Neighbor list builds = 1084
+Dangerous builds = 0
+unfix fpush
+unfix fthp
+uncompute Tpush
+
+# ---- profile-unbiased fluid thermostat: subtract the z-binned x-streaming so the thermostat
+#      holds the fluid isothermal WITHOUT bending the parabolic vx(z). NB: no wall Langevin bath
+#      -> no double-thermostat. ----
+variable nzT  equal round(lz/1.0)                       # ~1 sigma temp bins across the BOX (=> ~wmeas across the fluid)
+compute Tprof fluid temp/profile 1 0 0 z ${nzT}        # NB temp/profile bins the whole box: key nzT off lz, not wmeas
+compute Tprof fluid temp/profile 1 0 0 z 15        
+fix     fnve fluid nve                                  # integrate ONLY the fluid
+fix     fth  fluid langevin ${T} ${T} ${tdamp} ${seed1}
+fix     fth  fluid langevin 1.0 ${T} ${tdamp} ${seed1}
+fix     fth  fluid langevin 1.0 1.0 ${tdamp} ${seed1}
+fix     fth  fluid langevin 1.0 1.0 0.5 ${seed1}
+fix     fth  fluid langevin 1.0 1.0 0.5 14
+fix_modify fth temp Tprof
+thermo_style custom step temp c_Tprof pe press         # `temp` is diluted by the frozen walls; c_Tprof = fluid T
+
+# ---- seed-count GATE: the count-based seed makes count(fluid)==Nf exactly, so the ACCESSIBLE-width
+#      density count/(Lx*Ly*w_acc) == rho_f. Assert it here so a seeding error cannot pass silently. ----
+variable rho_acc equal count(fluid)/(v_Lx*v_Ly*v_wacc)
+print "SEED N=$(count(all)) Nf=${Nf} w_meas=${wmeas} w_acc=${wacc} rho_acc=${rho_acc} (target rho_f=${rho_f})"
+SEED N=4097 Nf=2177 w_meas=10 w_acc=9 rho_acc=0.799947243086752 (target rho_f=0.8)
+if "${rho_acc} < 0.76 || ${rho_acc} > 0.84" then "print 'ERROR: seeded accessible-width density off rho_f=0.8'" "quit 1"
+reset_timestep 0
+# --- end of shared setup; poiseuille.in continues with the body-force drive
+#     and the vx(z) / rho_m(z) measurement ---
+
+# =====================================================================
+#  Body-force Poiseuille drive + the vx(z) / rho_m(z) measurement.
+#  (mass = 1, so the per-atom force passed to addforce IS the per-mass g,
+#   and rho_m = rho_N: no per-atom-force-vs-mass-density mismatch.)
+# =====================================================================
+variable gforce index 0.05      # per-atom body force along x; the wide pore stays Newtonian at this
+#                                 force, and it lifts the narrow-pore signal above the noise.
+#                                 The narrow Push changes ONLY -var width, so gforce is the same for both.
+fix drive fluid addforce ${gforce} 0.0 0.0
+fix drive fluid addforce 0.05 0.0 0.0
+
+run ${nequil}
+run 100000
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 3.181 | 3.183 | 3.192 Mbytes
+   Step          Temp         c_Tprof         PotEng         Press     
+         0   0.52368663     0.98635808    -32.252148     -9.6786537    
+      1000   0.54182295     1.0110854     -32.261379     -9.7373584    
+      2000   0.53631247     1.0016046     -32.258301     -9.7190401    
+      3000   0.5484326      1.0156663     -32.23475      -9.578512     
+      4000   0.54692443     1.0105019     -32.246486     -9.6432909    
+      5000   0.53131764     0.99365164    -32.248244     -9.7019829    
+      6000   0.55529298     1.04279       -32.24612      -9.6790362    
+      7000   0.52315727     0.98245652    -32.268925     -9.821271     
+      8000   0.54345211     1.0148181     -32.262151     -9.7127231    
+      9000   0.53129167     0.9904454     -32.234093     -9.5947521    
+     10000   0.54416981     1.0194713     -32.25266      -9.6953168    
+     11000   0.53554677     1.0032025     -32.218876     -9.5393775    
+     12000   0.53602201     0.99909361    -32.256954     -9.7421298    
+     13000   0.54748677     1.0223319     -32.238655     -9.6204732    
+     14000   0.52311506     0.9837133     -32.24584      -9.6783299    
+     15000   0.54610996     1.0269585     -32.229743     -9.5821677    
+     16000   0.53689291     1.0046057     -32.232072     -9.5990983    
+     17000   0.5357712      0.99610353    -32.240479     -9.6270459    
+     18000   0.54125757     1.005543      -32.24464      -9.6365331    
+     19000   0.53690801     1.0060006     -32.245392     -9.6460488    
+     20000   0.53773551     1.0069604     -32.239472     -9.640031     
+     21000   0.53490125     1.0015694     -32.233901     -9.5918338    
+     22000   0.51736712     0.97351863    -32.264083     -9.7668653    
+     23000   0.53126845     0.99252513    -32.219851     -9.5175227    
+     24000   0.52824346     0.98688478    -32.223163     -9.5894161    
+     25000   0.54435628     1.0151214     -32.237404     -9.6352311    
+     26000   0.52547495     0.98540572    -32.225653     -9.5529022    
+     27000   0.52026446     0.97712592    -32.239235     -9.6763318    
+     28000   0.53379347     1.0035424     -32.237149     -9.6364678    
+     29000   0.54494339     1.0163283     -32.23814      -9.6221068    
+     30000   0.52772792     0.98615102    -32.229171     -9.6004832    
+     31000   0.52786744     0.9938447     -32.218403     -9.5312557    
+     32000   0.54451596     1.0184041     -32.249654     -9.7131373    
+     33000   0.54462151     1.0138331     -32.235211     -9.5956426    
+     34000   0.54898004     1.0309237     -32.234701     -9.5691901    
+     35000   0.54654815     1.0205354     -32.254627     -9.7295497    
+     36000   0.52965604     0.9964069     -32.247461     -9.6655322    
+     37000   0.52465952     0.98485545    -32.232695     -9.6121694    
+     38000   0.54665271     1.0272813     -32.238316     -9.6270397    
+     39000   0.51337079     0.96500628    -32.257179     -9.7477387    
+     40000   0.5392152      1.0142065     -32.242983     -9.6516865    
+     41000   0.54644897     1.0127118     -32.234404     -9.5952208    
+     42000   0.5385824      1.0110929     -32.239858     -9.6477203    
+     43000   0.5331729      0.99823453    -32.227447     -9.5336897    
+     44000   0.52316415     0.98106407    -32.237471     -9.6058981    
+     45000   0.52405079     0.98419662    -32.267171     -9.7911456    
+     46000   0.547722       1.0267884     -32.262093     -9.7117429    
+     47000   0.53770953     1.0039721     -32.26236      -9.7266585    
+     48000   0.53651802     1.005936      -32.248331     -9.6701663    
+     49000   0.54810413     1.0125612     -32.263066     -9.7870504    
+     50000   0.52243575     0.98098136    -32.254        -9.7504       
+     51000   0.5386971      1.0089553     -32.223938     -9.5375456    
+     52000   0.52731064     0.99374382    -32.250491     -9.7025723    
+     53000   0.5298363      0.99251457    -32.257303     -9.7322989    
+     54000   0.52407198     0.98526844    -32.255519     -9.7740924    
+     55000   0.52599069     0.98907336    -32.24913      -9.7076451    
+     56000   0.53790813     0.99879699    -32.219312     -9.4897312    
+     57000   0.52424449     0.9803767     -32.261039     -9.7520444    
+     58000   0.52188408     0.97873998    -32.251832     -9.6856172    
+     59000   0.53977612     0.99626656    -32.257391     -9.7050664    
+     60000   0.55453371     1.0377911     -32.24815      -9.641395     
+     61000   0.57328097     1.0586204     -32.241719     -9.6070242    
+     62000   0.52990553     0.99813623    -32.258376     -9.7404237    
+     63000   0.53039088     0.98869093    -32.255623     -9.7218294    
+     64000   0.53002991     0.99858682    -32.25517      -9.7073588    
+     65000   0.53413499     1.0045941     -32.237157     -9.6428831    
+     66000   0.52172385     0.98111346    -32.236905     -9.6772813    
+     67000   0.52598688     0.98195082    -32.224731     -9.5701037    
+     68000   0.53323979     0.99103179    -32.246725     -9.6786656    
+     69000   0.53745736     1.0010229     -32.232836     -9.5968117    
+     70000   0.52917418     0.9902717     -32.217139     -9.4918566    
+     71000   0.52728544     0.99159269    -32.231945     -9.6105928    
+     72000   0.53218895     0.99872353    -32.246218     -9.6638847    
+     73000   0.51670465     0.96718675    -32.234055     -9.6615013    
+     74000   0.53586599     1.0058694     -32.24752      -9.6761668    
+     75000   0.53427011     1.0055318     -32.252629     -9.6646423    
+     76000   0.54193948     1.0168252     -32.236915     -9.6531554    
+     77000   0.55575164     1.037641      -32.240052     -9.6267555    
+     78000   0.53325969     0.9959086     -32.241832     -9.6170406    
+     79000   0.54592482     1.0261833     -32.238231     -9.6516342    
+     80000   0.52510331     0.98506271    -32.253305     -9.7168216    
+     81000   0.53464037     1.0007373     -32.233559     -9.6319814    
+     82000   0.53270516     1.0018844     -32.24679      -9.6923407    
+     83000   0.54181544     1.0185143     -32.257557     -9.7436289    
+     84000   0.5374052      1.0114878     -32.251962     -9.6615512    
+     85000   0.53313066     1.0013531     -32.239537     -9.6502969    
+     86000   0.54437773     1.0194019     -32.247585     -9.6992283    
+     87000   0.50530421     0.94851312    -32.253386     -9.7352787    
+     88000   0.56004869     1.0478617     -32.22483      -9.5783522    
+     89000   0.53913098     1.0074384     -32.229319     -9.5827575    
+     90000   0.54751677     1.0307843     -32.258119     -9.6782022    
+     91000   0.53244795     0.99352158    -32.248549     -9.7134333    
+     92000   0.54064064     1.0105711     -32.241721     -9.6840615    
+     93000   0.52995547     0.99656531    -32.235787     -9.6267703    
+     94000   0.53151938     0.99942442    -32.248506     -9.6957451    
+     95000   0.5425158      1.0178268     -32.227913     -9.5657343    
+     96000   0.5341692      0.99991145    -32.256588     -9.7746459    
+     97000   0.52871236     0.99465341    -32.243431     -9.6308342    
+     98000   0.53648676     1.0070903     -32.248268     -9.6334949    
+     99000   0.55385752     1.0325103     -32.230525     -9.5323567    
+    100000   0.5235519      0.98264469    -32.270793     -9.8137872    
+Loop time of 15.5286 on 8 procs for 100000 steps with 4097 atoms
+
+Performance: 2781966.019 tau/day, 6439.736 timesteps/s, 26.384 Matom-step/s
+100.0% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 4.8317     | 5.6026     | 6.8117     |  25.9 | 36.08
+Neigh   | 3.0569     | 3.842      | 4.8683     |  35.8 | 24.74
+Comm    | 2.1608     | 4.4485     | 6.0587     |  62.7 | 28.65
+Output  | 0.00095154 | 0.0010244  | 0.0012401  |   0.3 |  0.01
+Modify  | 1.3233     | 1.4149     | 1.4978     |   4.9 |  9.11
+Other   |            | 0.2195     |            |       |  1.41
+
+Nlocal:        512.125 ave         568 max         466 min
+Histogram: 2 0 1 1 0 1 1 0 1 1
+Nghost:        1363.12 ave        1415 max        1305 min
+Histogram: 1 0 1 2 0 0 1 1 1 1
+Neighs:        18141.2 ave       21669 max       15713 min
+Histogram: 1 1 0 3 1 0 1 0 0 1
+
+Total # of neighbors = 145130
+Ave neighs/atom = 35.423481
+Neighbor list builds = 13283
+Dangerous builds = 0
+reset_timestep 0
+
+# vx(z) and mass density rho_m(z), binned fine across the pore. The wall
+# bins contain no fluid (group = fluid), so those rows are 0; the analyser keeps
+# only the fluid interval [z_bot_inner, z_top_inner] from the params file.
+variable binw equal 0.1                                # velocity-profile bin width (sigma)
+variable nvb  equal round(lz/v_binw)                   # key off the REAL box length lz (Lz is the pre-cap construction box)
+variable dzv  equal lz/v_nvb
+compute cvx fluid chunk/atom bin/1d z lower ${dzv} units box
+compute cvx fluid chunk/atom bin/1d z lower 0.0997452915939499 units box
+fix     fvx fluid ave/chunk 100 ${nrep} ${nfreq} cvx vx density/mass file poiseuille_w${width}.profile
+fix     fvx fluid ave/chunk 100 2000 ${nfreq} cvx vx density/mass file poiseuille_w${width}.profile
+fix     fvx fluid ave/chunk 100 2000 200000 cvx vx density/mass file poiseuille_w${width}.profile
+fix     fvx fluid ave/chunk 100 2000 200000 cvx vx density/mass file poiseuille_w10.profile
+
+# geometry + drive written for the analyser, WIDTH-TAGGED so the w=10 and w=4
+# datasets coexist for the wide-vs-narrow comparison at the end of the sheet.
+print "Lz $(lz)"           file   poiseuille_w${width}.params.txt
+print "Lz $(lz)"           file   poiseuille_w10.params.txt
+Lz 14.762303155904591634
+print "wall_th ${wall_th}" append poiseuille_w${width}.params.txt
+print "wall_th ${wall_th}" append poiseuille_w10.params.txt
+wall_th 3.0
+print "width ${width}"      append poiseuille_w${width}.params.txt
+print "width ${width}"      append poiseuille_w10.params.txt
+width 10
+print "w_meas ${wmeas}"     append poiseuille_w${width}.params.txt
+print "w_meas ${wmeas}"     append poiseuille_w10.params.txt
+w_meas 10
+print "z_bot_inner ${zbi}" append poiseuille_w${width}.params.txt
+print "z_bot_inner ${zbi}" append poiseuille_w10.params.txt
+z_bot_inner 2.3811015779523
+print "z_top_inner ${zti}" append poiseuille_w${width}.params.txt
+print "z_top_inner ${zti}" append poiseuille_w10.params.txt
+z_top_inner 12.3811015779523
+print "gforce ${gforce}"   append poiseuille_w${width}.params.txt
+print "gforce ${gforce}"   append poiseuille_w10.params.txt
+gforce 0.05
+print "binw ${binw}"       append poiseuille_w${width}.params.txt
+print "binw ${binw}"       append poiseuille_w10.params.txt
+binw 0.1
+
+# optional orientation trajectory (production only; off by default, -var dump 1).
+if "${dump} > 0" then   "dump dvmd all xyz 1000 poiseuille_w${width}_traj.xyz"   "dump_modify dvmd element Ar Cu Cu sort id"
+
+run ${nprod}
+run 200000
+Generated 0 of 3 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 3.432 | 3.435 | 3.443 Mbytes
+   Step          Temp         c_Tprof         PotEng         Press     
+         0   0.5235519      0.98264469    -32.270793     -9.8137872    
+      1000   0.53633179     1.0086231     -32.264366     -9.794745     
+      2000   0.53936759     1.010495      -32.227625     -9.5445934    
+      3000   0.5682162      1.0592699     -32.237631     -9.5723643    
+      4000   0.54186372     1.007395      -32.239316     -9.65524      
+      5000   0.53545199     1.0022879     -32.227158     -9.590887     
+      6000   0.52171643     0.98052355    -32.239718     -9.6595096    
+      7000   0.54027367     1.0107914     -32.256867     -9.7400893    
+      8000   0.51842819     0.97063905    -32.233568     -9.6135084    
+      9000   0.54687187     1.0290959     -32.245882     -9.6686761    
+     10000   0.5435131      1.0237569     -32.254545     -9.7098182    
+     11000   0.53288831     0.99780597    -32.243062     -9.659495     
+     12000   0.52911317     0.99182894    -32.242347     -9.6349029    
+     13000   0.53003839     0.9972504     -32.227028     -9.585724     
+     14000   0.53798379     1.0103743     -32.264085     -9.7369991    
+     15000   0.53651388     1.0032662     -32.249774     -9.64702      
+     16000   0.54667426     1.0245536     -32.248946     -9.6754346    
+     17000   0.54107295     1.0117971     -32.239859     -9.6175068    
+     18000   0.51543723     0.96634559    -32.242418     -9.6791968    
+     19000   0.54968115     1.0267733     -32.255239     -9.7268887    
+     20000   0.5310792      0.99517975    -32.233022     -9.611679     
+     21000   0.51401911     0.96638797    -32.246593     -9.7055648    
+     22000   0.52515977     0.98059763    -32.240472     -9.6454671    
+     23000   0.54999271     1.0250992     -32.231484     -9.5982165    
+     24000   0.54681448     1.0196352     -32.245887     -9.6819897    
+     25000   0.54613628     1.0209412     -32.246643     -9.6632147    
+     26000   0.5299718      0.99004693    -32.256914     -9.7304063    
+     27000   0.53171898     0.99721109    -32.243638     -9.6995789    
+     28000   0.53595978     1.0007204     -32.238633     -9.6464926    
+     29000   0.55118987     1.0359959     -32.257642     -9.7254906    
+     30000   0.53652583     1.0091726     -32.262096     -9.7700439    
+     31000   0.51750443     0.97109245    -32.26667      -9.7704551    
+     32000   0.53811823     1.0018172     -32.253024     -9.6967484    
+     33000   0.53427157     0.99980348    -32.248299     -9.7230973    
+     34000   0.53969385     1.0109038     -32.242675     -9.6583035    
+     35000   0.55829532     1.0379434     -32.244233     -9.6121336    
+     36000   0.55168915     1.0366379     -32.244832     -9.6420302    
+     37000   0.52746706     0.98784231    -32.224465     -9.5528717    
+     38000   0.53240131     0.99270896    -32.234573     -9.6321627    
+     39000   0.53396251     0.99476051    -32.241265     -9.6172421    
+     40000   0.53356014     1.0008791     -32.261372     -9.7219098    
+     41000   0.53461891     0.99759262    -32.2457       -9.6751243    
+     42000   0.54479929     1.0187802     -32.232845     -9.5940063    
+     43000   0.54389546     1.0170936     -32.25848      -9.7069924    
+     44000   0.54574962     1.0250248     -32.247238     -9.6780657    
+     45000   0.54727256     1.022454      -32.225934     -9.5768721    
+     46000   0.53456832     1.0029978     -32.251082     -9.6719121    
+     47000   0.5308727      0.99690532    -32.25034      -9.7139899    
+     48000   0.54425935     1.0259588     -32.234986     -9.628494     
+     49000   0.53760462     0.99718916    -32.227307     -9.5457296    
+     50000   0.53707552     0.99991358    -32.240591     -9.629141     
+     51000   0.52327171     0.98021072    -32.249273     -9.712357     
+     52000   0.52918562     0.98888351    -32.244439     -9.643978     
+     53000   0.55398922     1.0323328     -32.237274     -9.5857609    
+     54000   0.53185763     0.98418167    -32.252588     -9.7003247    
+     55000   0.54155735     1.0072755     -32.233165     -9.6310644    
+     56000   0.53819388     1.0055681     -32.249785     -9.720696     
+     57000   0.54438508     1.0230769     -32.232802     -9.6234855    
+     58000   0.52372789     0.98636261    -32.241017     -9.6919779    
+     59000   0.53426252     0.99777967    -32.250012     -9.6717099    
+     60000   0.55783795     1.0440886     -32.252426     -9.689415     
+     61000   0.55897839     1.0454642     -32.253008     -9.6478644    
+     62000   0.53956817     1.013449      -32.244024     -9.6783366    
+     63000   0.53462525     0.99672394    -32.232429     -9.6393407    
+     64000   0.52260293     0.98237568    -32.224423     -9.5777016    
+     65000   0.50777044     0.95625485    -32.237317     -9.670072     
+     66000   0.51822414     0.9752162     -32.24864      -9.7185951    
+     67000   0.53377934     0.99652414    -32.235757     -9.6172045    
+     68000   0.53862597     1.0036349     -32.233666     -9.5693408    
+     69000   0.54321175     1.0133432     -32.238966     -9.6235122    
+     70000   0.54126855     1.0132088     -32.229875     -9.5771924    
+     71000   0.52303309     0.98426651    -32.232513     -9.6159454    
+     72000   0.5294514      0.99414875    -32.23125      -9.6145566    
+     73000   0.52684713     0.99136983    -32.250937     -9.7110747    
+     74000   0.53935222     1.0145392     -32.266345     -9.7641104    
+     75000   0.53654446     1.0042664     -32.252664     -9.6903278    
+     76000   0.53437001     1.0046142     -32.241244     -9.6542321    
+     77000   0.55326169     1.036208      -32.252242     -9.682906     
+     78000   0.51912697     0.97387212    -32.244461     -9.6821296    
+     79000   0.53541978     1.0011532     -32.247587     -9.7297896    
+     80000   0.52742798     0.99206541    -32.242807     -9.6795265    
+     81000   0.52676337     0.98973035    -32.231201     -9.6174637    
+     82000   0.53498078     1.0046854     -32.246076     -9.6518512    
+     83000   0.5386119      1.0114187     -32.261512     -9.7268883    
+     84000   0.53967886     0.99961307    -32.23072      -9.5900302    
+     85000   0.52200828     0.98058053    -32.215941     -9.5321286    
+     86000   0.53425519     1.0024398     -32.260031     -9.7663639    
+     87000   0.55024376     1.0346175     -32.242555     -9.6888666    
+     88000   0.52221408     0.98052801    -32.24345      -9.6754463    
+     89000   0.53613754     1.0070097     -32.264334     -9.7668891    
+     90000   0.53487511     1.0013778     -32.254828     -9.7221137    
+     91000   0.52440722     0.98641815    -32.251247     -9.7352214    
+     92000   0.5363942      1.0095076     -32.254251     -9.721676     
+     93000   0.52877498     0.98815144    -32.225124     -9.5453362    
+     94000   0.53425782     1.0004497     -32.24942      -9.7131693    
+     95000   0.52976045     0.99628143    -32.271006     -9.8194038    
+     96000   0.53848393     1.002306      -32.264753     -9.781097     
+     97000   0.53478611     1.0005669     -32.228142     -9.5860538    
+     98000   0.53344788     0.99869044    -32.255817     -9.6772229    
+     99000   0.53752685     1.0132195     -32.244964     -9.6436477    
+    100000   0.52099829     0.97815778    -32.239296     -9.6482322    
+    101000   0.54441805     1.0056632     -32.246113     -9.6603481    
+    102000   0.54952554     1.0205252     -32.265188     -9.7898865    
+    103000   0.53901193     1.011061      -32.257366     -9.7343585    
+    104000   0.55106593     1.0328388     -32.251822     -9.6890039    
+    105000   0.53890581     1.0119889     -32.259295     -9.7426168    
+    106000   0.54030071     1.0124412     -32.237667     -9.6632128    
+    107000   0.54314898     1.0171691     -32.248081     -9.6856589    
+    108000   0.52974867     0.99279594    -32.233591     -9.6112189    
+    109000   0.54080514     1.0115883     -32.225052     -9.5591501    
+    110000   0.52486717     0.98722854    -32.242459     -9.6437303    
+    111000   0.53745403     1.0095741     -32.247622     -9.7019536    
+    112000   0.5248795      0.98927247    -32.258846     -9.7638129    
+    113000   0.53102139     0.9999768     -32.237842     -9.6385062    
+    114000   0.53205208     0.99449495    -32.237619     -9.6207336    
+    115000   0.54363176     1.0216985     -32.245889     -9.6704269    
+    116000   0.54251133     1.0102013     -32.244585     -9.6398015    
+    117000   0.54995619     1.0317627     -32.234415     -9.6333212    
+    118000   0.55623821     1.0463021     -32.235447     -9.5778032    
+    119000   0.53213046     0.9938361     -32.226019     -9.6058373    
+    120000   0.53896934     1.0021273     -32.233242     -9.5998041    
+    121000   0.54844233     1.0300284     -32.249585     -9.6313439    
+    122000   0.53862955     1.0085613     -32.250892     -9.6931694    
+    123000   0.54215323     1.0077147     -32.239169     -9.6695947    
+    124000   0.55233536     1.0361858     -32.254734     -9.7096788    
+    125000   0.54738199     1.0215624     -32.261961     -9.7913102    
+    126000   0.53219704     0.98876308    -32.230717     -9.6015732    
+    127000   0.53703298     1.0099386     -32.24679      -9.6990917    
+    128000   0.54247973     1.0088818     -32.244648     -9.6512671    
+    129000   0.55642493     1.0368857     -32.248673     -9.6719889    
+    130000   0.52924371     0.99667756    -32.225155     -9.6107732    
+    131000   0.52950697     0.99291457    -32.2272       -9.5656612    
+    132000   0.52257453     0.97284213    -32.242635     -9.6549958    
+    133000   0.53118906     0.98881918    -32.239308     -9.6314756    
+    134000   0.53289559     0.99551292    -32.260698     -9.7463917    
+    135000   0.52947685     0.99337175    -32.220853     -9.5670915    
+    136000   0.54112801     1.0161745     -32.238963     -9.6018604    
+    137000   0.51771985     0.97292939    -32.251325     -9.6711697    
+    138000   0.54292457     1.0214144     -32.242373     -9.6446145    
+    139000   0.52663087     0.99134178    -32.237712     -9.6059931    
+    140000   0.52075817     0.97724999    -32.247148     -9.7146665    
+    141000   0.53630207     0.98546711    -32.249137     -9.7142489    
+    142000   0.54387928     1.0177637     -32.254514     -9.7312583    
+    143000   0.53662463     0.9926388     -32.233911     -9.5847097    
+    144000   0.54362274     1.0224619     -32.242292     -9.6176355    
+    145000   0.54040474     1.0150417     -32.253891     -9.723963     
+    146000   0.54439658     1.0167784     -32.244951     -9.6671481    
+    147000   0.53741701     1.0085452     -32.244153     -9.629629     
+    148000   0.53636748     1.009841      -32.239613     -9.6507736    
+    149000   0.51590884     0.96578576    -32.22855      -9.6282668    
+    150000   0.52970389     0.99728229    -32.231168     -9.6147572    
+    151000   0.52429727     0.98329051    -32.254897     -9.7589122    
+    152000   0.52736457     0.9936273     -32.237945     -9.659438     
+    153000   0.51676827     0.97011292    -32.250177     -9.7322891    
+    154000   0.52830866     0.98988324    -32.233379     -9.6239382    
+    155000   0.55118781     1.0306783     -32.235004     -9.5918807    
+    156000   0.54044287     1.0137822     -32.260447     -9.761438     
+    157000   0.53352538     1.0040952     -32.226706     -9.5607968    
+    158000   0.54432364     1.0220365     -32.234715     -9.5652813    
+    159000   0.54179475     1.0152493     -32.230741     -9.5498099    
+    160000   0.53009627     0.99051121    -32.257619     -9.7055533    
+    161000   0.54225326     1.0150579     -32.233892     -9.6130308    
+    162000   0.54437033     1.0186609     -32.23134      -9.5733744    
+    163000   0.53643605     0.99986851    -32.248167     -9.6423425    
+    164000   0.53847345     1.0069646     -32.25089      -9.6850258    
+    165000   0.52117066     0.98106813    -32.234504     -9.6860248    
+    166000   0.52351123     0.98242232    -32.236581     -9.6531079    
+    167000   0.54104369     1.0144524     -32.259226     -9.7595378    
+    168000   0.52840754     0.98541092    -32.226095     -9.5390985    
+    169000   0.52331452     0.98007136    -32.244584     -9.7014221    
+    170000   0.53241483     1.0015226     -32.238449     -9.6300394    
+    171000   0.53034233     0.99260047    -32.246529     -9.7051928    
+    172000   0.54316074     1.0130469     -32.253694     -9.6872393    
+    173000   0.53234044     0.99147358    -32.249461     -9.6743912    
+    174000   0.53656654     1.0012065     -32.234064     -9.6159684    
+    175000   0.53105751     0.99760304    -32.234232     -9.6182557    
+    176000   0.52968987     0.99750179    -32.242691     -9.6590008    
+    177000   0.53249339     0.99219761    -32.229809     -9.6242885    
+    178000   0.5437458      1.0160574     -32.235209     -9.6237688    
+    179000   0.53502835     1.0047057     -32.223329     -9.5429011    
+    180000   0.53592188     1.0079674     -32.236806     -9.6150871    
+    181000   0.53066186     0.99298898    -32.234282     -9.5978478    
+    182000   0.55355396     1.0223982     -32.260268     -9.7361803    
+    183000   0.53035078     0.99327935    -32.253276     -9.7175442    
+    184000   0.54255714     1.0189945     -32.244604     -9.6691615    
+    185000   0.55727204     1.0364906     -32.226426     -9.5373988    
+    186000   0.54590183     1.0247183     -32.254485     -9.7236867    
+    187000   0.53600402     1.0071526     -32.240171     -9.6536364    
+    188000   0.53687977     1.0106509     -32.236488     -9.6387887    
+    189000   0.52357692     0.98144081    -32.217604     -9.5836712    
+    190000   0.53740061     1.004721      -32.238305     -9.5899195    
+    191000   0.53072186     0.99825761    -32.234518     -9.5855387    
+    192000   0.53245374     0.99796556    -32.25576      -9.7499898    
+    193000   0.53581667     1.0023118     -32.241838     -9.6109223    
+    194000   0.5308953      0.98879707    -32.245269     -9.6459379    
+    195000   0.53098292     0.9998342     -32.252345     -9.6866443    
+    196000   0.54792695     1.0247106     -32.261792     -9.7708102    
+    197000   0.53866332     1.0086223     -32.246975     -9.6647946    
+    198000   0.52631062     0.98406032    -32.241662     -9.6538559    
+    199000   0.56507603     1.0558437     -32.241789     -9.6031743    
+    200000   0.52865905     0.98674671    -32.245055     -9.6436378    
+Loop time of 32.0588 on 8 procs for 200000 steps with 4097 atoms
+
+Performance: 2695050.218 tau/day, 6238.542 timesteps/s, 25.559 Matom-step/s
+100.0% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 10.224     | 11.708     | 14.068     |  34.9 | 36.52
+Neigh   | 6.3198     | 7.8782     | 9.944      |  49.7 | 24.57
+Comm    | 4.7542     | 9.0944     | 12.083     |  82.7 | 28.37
+Output  | 0.0020338  | 0.0022008  | 0.0026079  |   0.4 |  0.01
+Modify  | 2.8083     | 2.9346     | 3.0645     |   4.5 |  9.15
+Other   |            | 0.4414     |            |       |  1.38
+
+Nlocal:        512.125 ave         566 max         464 min
+Histogram: 2 0 1 1 0 1 1 0 0 2
+Nghost:        1360.25 ave        1413 max        1302 min
+Histogram: 2 0 0 0 2 1 1 0 0 2
+Neighs:        18145.2 ave       21024 max       15593 min
+Histogram: 1 1 0 2 0 2 0 1 0 1
+
+Total # of neighbors = 145162
+Ave neighs/atom = 35.431291
+Neighbor list builds = 26568
+Dangerous builds = 0
+print "Done. Analyse with:  python analyse_poiseuille.py"
+Done. Analyse with:  python analyse_poiseuille.py
+Total wall time: 0:00:48

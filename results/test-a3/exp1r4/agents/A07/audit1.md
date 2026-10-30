@@ -1,0 +1,4 @@
+verdict: untrusted
+run: nequil=150000 nprod=400000 vwall=0.25
+cause: The fluid wasn't steady during production and wasn't at T* 1.0: it started about 0.65 after equilibration, heated slowly through the weak (eps_wf=0.2) walls, and settled near 1.2, so b≈4.15σ mixes temperatures over a ~0.55 swing — a bigger effect than the ~0.4σ scatter between the two walls.
+evidence: In log.lammps the production thermo Temp climbs from 0.633 to about 1.0 by step ~85000, then stays flat; with 960 drive atoms (≈0.083) and 960 bath atoms (≈1.08 counting their streaming) that puts the fluid near 0.65 at the start and about 1.2 at the plateau. analysis.out's single average, fluid T=1.08, fits that ramp. day1_vx.profile is one block over all 200000 steps; it gives b≈3.8σ at the bottom wall and ≈4.5σ at the top, slope 0.0383 against 0.0561 for no slip.

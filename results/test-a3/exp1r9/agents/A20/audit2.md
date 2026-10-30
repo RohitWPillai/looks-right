@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: With the weaker thermostat (tdamp 5.0, same seed 11, otherwise identical input) the extra drag goes away and the mid-pore viscosity drops from 2.528 to 2.104, which is within the ~0.07 scatter of the bulk value of about 2.13, while the fluid stays at T*≈1.0. So the original's 19% excess came from the thermostat, and the new profile is the one to use.
+evidence: new/analysis.out gives an η plateau of 2.104 and a pore-centre density of 0.791, against original/analysis.out with 2.528 and 0.790. In new/log.lammps c_Tprof stays between about 0.96 and 1.06 (mean ≈1.01) over 200000 production steps, and the run ends normally with no errors. new/command.txt differs from the original only by `-var tdamp 5.0`. new/poiseuille_w10.png shows a peak vx of about 0.188, against 0.157 originally (ratio 1.20, matching 2.528/2.104), Pxz of ±0.18 at the walls, and a flat η(z) of about 2.05–2.2 across the pore.

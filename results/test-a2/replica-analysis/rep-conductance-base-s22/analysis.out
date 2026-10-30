@@ -1,0 +1,10 @@
+
+Sheet 4: interfacial conductance
+    walls held at Tbot=1.300 / Ttop=0.900  (bottom wall is hot)
+    fluid-interior dT/dz = -0.0104  (R^2=0.973; linear conduction)
+    bottom: T_wall=1.294  T_fluid=1.197  dT=0.098   J=0.0470 -> G_bot=0.482
+    top:    T_wall=0.909  T_fluid=1.011  dT=0.103   J=0.0473 -> G_top=0.461
+    heat added at the hot wall / removed at the cold wall = 14.2186 / 14.2889 per unit time
+    imbalance 0.5%   (energy in equals energy out in a steady run)
+    (reduced LJ units; G = J/dT per wall, hot and cold separate.)
+    plot -> day1_conductance.png

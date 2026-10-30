@@ -1,0 +1,4 @@
+verdict: untrusted
+run: gforce=0.1 nprod=800000
+cause: In poiseuille_w4.png the vx(z) values scatter by about ±0.01 bin to bin, against a peak flow of only about 0.02, so dvx/dz and therefore eta(z) are mostly noise, and the "no single plateau" result in analysis.out cannot be told apart from noise rather than layering. Doubling the drive and running 4× longer should cut the relative noise about fourfold and stays within the step budget.
+evidence: command.txt (width 4, seed 11); poiseuille_w4.params.txt (gforce 0.05, binw 0.1); poiseuille_w4.png (unsmoothed vx points spread from 0.002 to 0.029 with a smoothed peak of about 0.023; eta(z) swings from −5.5 to over 10 and goes negative, which is impossible); analysis.out (3 layers, density 0.860, "NO single plateau"); log.lammps (c_Tprof about 1.0 so temperature is fine; 308000 total steps, so 4× is 1232000).

@@ -1,0 +1,6 @@
+Both runs use the same setup and seed 11; only the equilibration length differs. The longer equilibration fixed the problem: the new run's temperature, energy and pressure stay flat through the whole production stage, and its two wall peaks agree with each other.
+
+verdict: trusted
+use: new
+cause: With nequil=60000 the fluid had finished warming before production started, so the new rho(z) is a steady-state profile at T*=1.0; the original's peak sits 0.03–0.05 below it at both walls, which is larger than its own wall-to-wall scatter (0.018), so the original is the one to discard.
+evidence: new/log.lammps: temperature levelled at ~0.83–0.84 by step 50,000 of the 60,000-step equilibration, and over all 50,000 production steps it stays at 0.83–0.86 (PE −23.77 to −23.82, pressure −3.0 to −3.5) with no drift. new/day1_density.profile (3920 fluid atoms, 0.1σ bins) has a bottom-wall peak of 1.5146 at z≈3.25 and a top-wall peak of 1.5139 at z≈20.56. new/analysis.out gives bulk 0.718, peak 1.515, contrast 2.11x. original/day1_density.profile has peaks of 1.481 and 1.463 (bulk 0.725, contrast 2.04x), recorded while the original/log.lammps temperature was still rising 0.69→0.83 in production. The command.txt files differ only in -var nequil 60000.

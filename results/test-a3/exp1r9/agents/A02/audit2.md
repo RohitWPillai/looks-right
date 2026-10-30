@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: With the input's own gentle default vwall=0.5, the channel stays nearly isothermal and in the linear regime (T(z) is flat to within ~0.03, with no hot-centre hump; it sits about 10% above the 1.0 baths), so η≈1.19 describes the LJ liquid near T*=1.0, while the original vwall=3.0 run's η≈0.978 is spoiled by viscous heating (T≈2.2–3.2).
+evidence: new/command.txt (-var vwall 0.5 -var seed 11); new/analysis.out (dvx/dz=+0.0546 with R²=0.999, pxz=-0.0652, eta≈1.194, T(z) walls ~1.13/1.12, centre ~1.10); new/day1_viscosity.png (linear vx(z), T(z) between 1.08 and 1.13, pxz running mean flat at -0.065 over 500 samples with spread ~±0.05, so the mean is uncertain by roughly 5%); new/log.lammps (global temp ~0.95–0.98 through production); original/analysis.out (eta≈0.978 at T(z) 2.19/2.15 walls, 3.18 centre).

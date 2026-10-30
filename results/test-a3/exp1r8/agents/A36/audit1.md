@@ -1,0 +1,4 @@
+verdict: untrusted
+run: nequil=40000
+cause: The run used only 10,000 equilibration steps instead of the input's 40,000 (`-var nequil 10000` on the command line), so the system had not reached steady state: the two walls' heat currents differ by more than a factor of two, and the G values built from them are transient artefacts, not steady-state conductances.
+evidence: command.txt has `-var nequil 10000` against `nequil index 40000` in conductance.in, and log.lammps confirms `run 10000` then `run 40000`. In analysis.out, heat in/out is 16.57/7.74 (53.3% imbalance), J_bot=0.0548 vs J_top=0.0256, the cumulative-heat fit R² is 0.986/0.889, and G_bot=0.302 vs G_top=0.536 (1.8× apart). The 53% imbalance is far larger than any seed-to-seed scatter, so this rerun would change the answer; at 80,000 total steps it stays within 4× the original 50,000.

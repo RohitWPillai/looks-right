@@ -1,0 +1,4 @@
+verdict: trusted
+run: none
+cause: The 0.1 σ bins clearly resolve the layering at both walls, and the two walls give nearly the same profile. The fluid was still warming during the first ~20k of the 50k production steps (~0.80 → 1.0), but that probably moves the peak heights by ~1%, less than their statistical scatter (roughly 1–2%, my estimate), so a longer equilibration would not change the verdict.
+evidence: day1_density.profile has binw 0.100 σ and 238 chunks; contact peaks are 1.481 at z=3.25 and 1.463 at z=20.56, second layers are 0.976 and 0.969, and the flat middle sits at ~0.72–0.73, matching analysis.out (rho_bulk 0.725, contrast 2.04x); in log.lammps, thermo temp goes 0.673 → ~0.83 by production step 20000 and then levels at 0.837, which is ~1.00 once the 960 frozen anchor atoms are discounted (×17517/14640).

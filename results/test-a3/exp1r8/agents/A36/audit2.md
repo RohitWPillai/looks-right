@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The rerun used the input's own 40,000 equilibration steps and reached steady state: heat in and heat out agree to within 1% and both walls carry the same current, so each wall's G is a real steady-state conductance; the 1.5× gap between the walls is the expected hot/cold asymmetry, not a fault.
+evidence: new/command.txt has `-var nequil 40000 -var seed 11`, and new/log.lammps shows `run 40000` (equilibration) then `run 40000` (production) with no warnings. In new/analysis.out, heat in/out is 14.7045/14.5505 (1.0% imbalance, against 53.3% in original/analysis.out), J_bot=0.0486 vs J_top=0.0481, the fluid-interior gradient fit has R²=0.972, and G_bot=0.623 (dT=0.078) vs G_top=0.407 (dT=0.118); the original's G_bot=0.302 and G_top=0.536 came from a run that was not yet steady.

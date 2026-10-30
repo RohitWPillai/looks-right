@@ -1,0 +1,4 @@
+verdict: untrusted
+run: nequil=40000
+cause: The run was started with `-var nequil 10000` instead of the input's own 40000, so production began before the channel reached thermal steady state; both per-wall J values, and so G_bot and G_top, are biased, mostly the cold wall's.
+evidence: command.txt shows `-var nequil 10000` against the default 40000 in conductance.in:29. analysis.out reports 16.57 heat in versus 7.74 out per unit time (53.3% imbalance), cumulative-heat fit R² of 0.986/0.889, and G_bot=0.302 versus G_top=0.536. In day1_heat.dat the cold bath (f_btop) drifts negative to about −90 at around step 2900 and only then starts rising; over steps 20000–40000 the slopes are about 14.2 (hot) and 12.0 (cold) per τ, which puts J_top near 0.040 rather than the reported 0.0256 — a shift much larger than seed scatter. The named run totals 80000 steps, within 4× the original 50000.

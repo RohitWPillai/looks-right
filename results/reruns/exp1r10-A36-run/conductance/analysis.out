@@ -1,0 +1,13 @@
+
+Sheet 4: interfacial conductance
+    walls held at Tbot=1.300 / Ttop=0.900  (bottom wall is hot)
+    fluid-interior dT/dz = -0.0107  (R^2=0.972; linear conduction)
+    bottom: T_wall=1.292  T_fluid=1.214  dT=0.078   J=0.0486 -> G_bot=0.623
+    top:    T_wall=0.906  T_fluid=1.024  dT=0.118   J=0.0481 -> G_top=0.407
+    heat added at the hot wall / removed at the cold wall = 14.7045 / 14.5505 per unit time
+    imbalance 1.0%   (energy in equals energy out in a steady run)
+    NOTE: the two walls give G differing 1.5x. Some asymmetry is
+          expected (they sit at different T), but a large gap means the
+          jump is under-resolved -- run replicas (-var seed) and average.
+    (reduced LJ units; G = J/dT per wall, hot and cold separate.)
+    plot -> day1_conductance.png

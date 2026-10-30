@@ -1,0 +1,6 @@
+
+[slab] LIQUID-VAPOUR SLAB  (T*=1.50, rcut=2.50)
+    SLAB EVAPORATED / no two-phase coexistence (rho_liq=0.322, rho_liq/rho_vap=2.3, 2 crossings, faces 28.5 sigma apart)
+    -> gamma is meaningless at this rcut/T; not reported.
+    plot -> slab_density.png
+    plot -> slab_pressure.png

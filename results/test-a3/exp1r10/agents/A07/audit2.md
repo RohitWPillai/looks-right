@@ -1,0 +1,6 @@
+I've checked the new run's command, log, velocity profile and analysis against the original. Here is the verdict:
+
+verdict: trusted
+use: new
+cause: The new run (vwall 0.25, 150000 equilibration and 400000 production steps) was already in steady state through all of production, its profile is clean, and its fluid stays at about 1.07 regardless of shear rate (no sign of shear heating), so its slip length of about 2.96 σ is a sound gentle-shear value; the original's 4.15 σ was averaged partly over the warm-up, and the 1.2 σ gap is far larger than the roughly 0.1 σ that the slope's ~1% uncertainty allows, so the original value should be dropped.
+evidence: new/command.txt (seed 11, vwall 0.25, nequil 150000, nprod 400000); new/log.lammps: equilibration Temp climbs 0.57→0.87 until ~150000, then production Temp stays flat at 0.87–0.91 and PE at −23.69 to −23.72 from step 0 to 400000, while the original used only nequil 20000 (original/slip.in defaults); new/day1_vx.profile is linear and antisymmetric (−0.193…+0.191, ~110 atoms/bin); new/analysis.out: shear rate 0.0211 vs no-slip 0.0281, R²=0.999, fluid T 1.07 (original 1.08 at twice the wall speed, and thermo Temp 0.89 split over 960 anchors, 960 baths and 3920 fluid atoms also gives ~1.07, not the earlier 1.19), b ≈ 2.961 σ vs original/analysis.out b ≈ 4.148 σ; new/day1_T.dat was binary and could not be read.

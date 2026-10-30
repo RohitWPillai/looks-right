@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The only change was a longer equilibration (nequil 10,000 → 100,000, same seed 11). The new run's potential energy stays flat through production, so γ = 0.358 measures an equilibrated slab, and it is about 0.1 above the original 0.261, which is several times the 0.03–0.05 run-to-run scatter and so not noise.
+evidence: new/command.txt and new/slab_params.txt show nequil=100000, nprod=100000, seed=11, T=0.85, rcut=2.5, Lx=Ly=10.73, Lz=89.39. In new/log.lammps the equilibration PotEng rises from −4.45 to about −3.96 by 80k–100k, and production PotEng stays between −3.89 and −3.95 from 10k to 100k with temperature 0.83–0.88. new/analysis.out gives γ=0.358 (one run, "indicative"), ρ_liq=0.698, ρ_vap=0.029, faces 23.0σ apart, 10–90 width 3.44σ. In new/slab_pressure.png the P_N−P_T peaks sit at the interfaces (z≈34–36 and 55–57) with P_N≈P_T≈0.022 in the vapour. original/analysis.out has γ=0.261 from a run with nequil=10000.

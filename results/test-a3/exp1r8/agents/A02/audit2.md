@@ -1,0 +1,6 @@
+The new run (vwall 0.5) gives a viscosity you can use; the original run (vwall 3.0) should be thrown out. Here is my four-line answer:
+
+verdict: trusted
+use: new
+cause: At the gentle wall speed of 0.5 the flow stays linear with almost no slip, and the fluid stays close to isothermal near T* 1.0 (T(z) is 1.08–1.13, with only a ~0.03 hump), so η ≈ 1.19 is a valid Couette viscosity for the LJ liquid at T* ≈ 1.0–1.1. The ~6% effect of Vf's effective height 18.918 is within the stress scatter, and the lower-than-expected value (vs ~2 at ρ 0.8) fits the actual fluid density, about 0.73–0.76 (3920 fluid atoms in the 17.8σ gap). The original η ≈ 0.98 was measured at T ≈ 2.2–3.2 and stays unusable.
+evidence: new/command.txt (-var vwall 0.5 -var seed 11); new/analysis.out (dvx/dz = 0.0546 with R² = 0.999, pxz = -0.0652, η ≈ 1.194, T(z) walls 1.13/1.12 and centre 1.10); new/day1_viscosity.png (linear vx(z), running mean of pxz flat at -0.065 over 500 samples with instantaneous scatter ~±0.05); new/log.lammps (5840 atoms after deleting 280, 1920 of them wall → 3920 fluid; box 23.81 × 12.70 × 23.81 with wall_th 3; thermo temp levels off at ~0.95–0.97 from step 20000 to 50000 of production); new/viscosity.in:56 (Vf = lx*ly*18.918 instead of the geometric 17.81, which lowers |pxz| by ~6%); original/analysis.out (η ≈ 0.978 at a hot, non-isothermal T(z)).

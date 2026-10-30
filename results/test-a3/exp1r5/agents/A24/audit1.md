@@ -1,0 +1,4 @@
+verdict: untrusted
+run: gforce=0.2 nprod=800000
+cause: In this 4σ pore the streaming velocity vx(z) is about 0.02 at most, against bin-to-bin noise of about 0.005–0.01, so dvx/dz (and so eta(z)) is mostly noise and the "no single plateau" result cannot be told apart from noise; a 4× stronger drive (still a low shear rate, about 0.05, likely still Newtonian) and 4× longer averaging should raise the signal-to-noise about 8-fold.
+evidence: poiseuille_w4.profile has vx running from about 0.002 at the walls to only 0.018–0.029 in the centre; mirror-image bins differ by about 0.005–0.008 (bin 33: 0.0176 vs bin 56: 0.0101; bin 38: 0.0290 vs bin 53: 0.0248); bin 38 (0.029) is higher than the centre bins (0.018–0.026), so there is no clean parabola; log.lammps shows gforce=0.05 (params.txt), nprod=200000 and 308000 total steps (the new run uses 908000, within the 4× limit); analysis.out reports 3 layers and "NO single plateau", read off this noisy gradient.

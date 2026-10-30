@@ -1,0 +1,4 @@
+verdict: untrusted
+run: vwall=0.25 nprod=800000
+cause: The run was meant to be at T* 1.0, but the fluid ran 12% hot at T* 1.12, so this slip length belongs to a hotter liquid; slip length grows roughly as T², about a 25% shift, which is larger than the likely run-to-run scatter of about 0.1σ, and halving the wall speed cuts this heating about fourfold while still counting as gentle shear (eps_wf 0.6 was set deliberately, so it is not the problem).
+evidence: analysis.out (fluid temperature 1.12 against set point 1.0; b ≈ 0.363σ; shear rate 0.0539 against 0.0561 no-slip; R²=1.000), day1_T.dat (1.11851), log.lammps (whole-system temperature rises from 0.63 to about 0.965 and stays there from step ~20000 of production, which fits a fluid near 1.12), day1_vx.profile (smooth linear profile, reaching ±0.5 at z≈2.63/21.2), command.txt (eps_wf 0.6, seed 11; new run uses 820k steps, within the 880k limit).

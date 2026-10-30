@@ -1,0 +1,16 @@
+
+Sheet 4: interfacial conductance
+    walls held at Tbot=1.300 / Ttop=0.900  (bottom wall is hot)
+    fluid-interior dT/dz = -0.0088  (R^2=0.968; linear conduction)
+    bottom: T_wall=1.296  T_fluid=1.104  dT=0.192   J=0.0632 -> G_bot=0.329
+    top:    T_wall=0.904  T_fluid=0.947  dT=0.043   J=0.0274 -> G_top=0.633
+    heat added at the hot wall / removed at the cold wall = 19.0999 / 8.2739 per unit time
+    imbalance 56.7%   (energy in equals energy out in a steady run)
+    WARNING: energy in does not equal energy out (imbalance 56.7%)
+             -> the run is not steady; lengthen nequil (~40000).
+    WARNING: the cumulative-heat curves are far from straight lines (linear-fit R^2 0.990/0.874) -> the run is not steady; lengthen nequil.
+    NOTE: the two walls give G differing 1.9x. Some asymmetry is
+          expected (they sit at different T), but a large gap means the
+          jump is under-resolved -- run replicas (-var seed) and average.
+    (reduced LJ units; G = J/dT per wall, hot and cold separate.)
+    plot -> day1_conductance.png

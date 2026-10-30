@@ -1,0 +1,4 @@
+verdict: untrusted
+run: gforce=0.2 nprod=800000
+cause: At gforce 0.05 the flow is too weak for this 4σ pore: the drift (about 0.02) is barely above the noise in each bin (about 0.01), so dvx/dz, and therefore eta(z), is mostly noise. The "no single plateau" result is noise rather than measured layering. A 4× stronger drive (wall shear rate about 0.1, still Newtonian) with 4× more sampling raises signal-to-noise about 8×, within budget (908k of 1.23M steps).
+evidence: poiseuille_w4.profile: vx jumps between neighbouring bins (0.029→0.014 at z 3.73→3.83, 0.027→0.018 at z 5.13→5.23; 0.002–0.029 overall), with no parabola; poiseuille_w4.png: the eta panel swings from -5.7 to past +10, including negative viscosities, while P_xz is smooth (±0.06); analysis.out: "3 layers… NO single plateau"; log.lammps: c_Tprof ≈ 1.0, wmeas = 4, 726 fluid atoms, all guards passed.

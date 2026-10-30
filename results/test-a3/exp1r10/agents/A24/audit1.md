@@ -1,0 +1,4 @@
+verdict: untrusted
+run: gforce=0.3 nprod=800000
+cause: At gforce 0.05 the flow is buried in thermal noise: vx(z) peaks at only about 0.02, while neighbouring bins jump by about 0.01. Differentiating it makes dvx/dz, and so eta(z), pure noise, which means the reported "no single plateau" result reflects noise, not the confined liquid's rheology.
+evidence: In poiseuille_w4.profile, vx in the fluid bins jumps between 0.0019 and 0.029 with no clear parabola (for example 0.0098 → 0.0189 → 0.0230 across adjacent bins near the centre, and 0.0143 → 0.0290 → 0.0143). In poiseuille_w4.png, eta(z) swings from about −5.5 to above 10, including physically impossible negative values, while P_xz is smooth (±0.06). analysis.out bases its "NO single plateau" conclusion on this eta(z). Expected peak velocity g·rho·h²/(8·eta) ≈ 0.05·0.86·3²/(8·2.5) ≈ 0.02, set against thermal velocities of about 1 (T*=1.0). This is the 4 σ pore run (command.txt: -var width 4 -var seed 11).

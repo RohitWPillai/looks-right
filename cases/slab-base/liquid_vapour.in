@@ -1,0 +1,156 @@
+# #####################################################################
+#  DAY 2 - PART 2 : liquid-vapour slab (free-surface LJ)
+#  A single-component Lennard-Jones liquid slab, centred in a long
+#  fully-periodic box (slab normal = z), so its two exposed faces relax
+#  into liquid-vapour interfaces. One run feeds both Part-2 exercises:
+#    (1) the z density profile + the diagonal pressure tensor -> surface
+#        tension gamma  (analyse_liquid_vapour.py)
+#    (2) the trajectory -> the intrinsic (capillary-wave) surface
+#        (intrinsic_surface.py), with -var dump 1
+#
+#  Density only:   lmp_serial -in liquid_vapour.in                    (Sheet 2)
+#  Surface tension: add  -var localstress 1                           (Sheet 3 needs this)
+#  Intrinsic surface: add  -var dump 1                                (Sheet 4)
+#  with a knob:    lmp_serial -in liquid_vapour.in -var T 1.0
+# #####################################################################
+
+# ---- parameters (override any with -var NAME value) ----
+variable T       index 0.85    # temperature (T* < Tc* so a liquid slab coexists with vapour). Knob: -var T 1.0
+variable rho_l   index 0.7     # seed liquid density. Knob: follow the phase diagram with rho_v
+variable rho_v   index 0.05    # seed vapour density
+variable rcut    index 2.5     # LJ cutoff (sigma). Knob: -var rcut 2.0 lowers gamma
+variable Lx_t    index 10.0    # lateral box target (sigma)
+variable Ly_t    index 10.0
+variable Lz_t    index 90.0    # long axis = slab normal: slab + two vapour gaps
+variable tslab   index 20.0    # initial liquid-slab thickness (sigma), centred in z
+variable bin     index 0.5     # z-profile bin width (sigma)
+variable dt      index 0.005   # timestep (tau)
+variable tdamp   index 1.0     # Nose-Hoover damping (tau)
+variable nequil  index 10000   # equilibration steps
+variable nprod   index 100000  # production steps. LIVE default 100000; the shipped reference uses 500000
+variable seed    index 90187   # RNG seed for the initial velocities. The ensemble varies this per replica
+variable dump    index 0       # -var dump 1 -> write slab_traj.xyz (production) for view_domain / intrinsic
+variable localstress index 0   # -var localstress 1 -> also bin the diagonal pressure tensor for gamma
+variable outdir  index .       # output directory (the ensemble sets one per replica)
+# guard: never let -var outdir target the shipped read-only reference ensemble. Each
+# reference/ dir carries a .is_reference marker; is_file() matches it however the path is
+# written (trailing slash, ./, absolute) and does NOT break the default outdir '.' (which
+# has no marker). A student's own ensemble goes to output_*/ here, read with --ensemble-mine.
+variable outdir_is_reference equal is_file(${outdir}/.is_reference)
+if "${outdir_is_reference} > 0" then "print 'ERROR: -var outdir must not target reference/ (the shipped reference ensemble is read-only; read it with --ensemble)'" "quit 1"
+shell mkdir ${outdir}
+# clear ALL regeneratable outputs at the start, so an aborted or reconfigured run
+# cannot leave a stale profile/params/trajectory for the analyser to misread as this
+# run's (the conditional stress/traj especially, but also a density/params left by a
+# run that later aborts before overwriting them).
+shell rm -f ${outdir}/slab_density.profile ${outdir}/slab_stress.profile ${outdir}/slab_params.txt ${outdir}/slab_traj.xyz ${outdir}/slab_density.png ${outdir}/slab_pressure.png ${outdir}/slab_gamma_convergence.png
+
+# ---- derived geometry (snap the box to whole liquid-FCC lattice constants) ----
+variable af    equal (4.0/v_rho_l)^(1.0/3.0)   # FCC lattice constant at the liquid density
+variable Lx    equal round(v_Lx_t/v_af)*v_af
+variable Ly    equal round(v_Ly_t/v_af)*v_af
+variable Lz    equal round(v_Lz_t/v_af)*v_af
+variable zlo_s equal 0.5*(v_Lz-v_tslab)         # central slab band [zlo_s, zhi_s]
+variable zhi_s equal 0.5*(v_Lz+v_tslab)
+
+# vacuum-gap guard: the slab-to-image separation across the z-PBC is (Lz - tslab);
+# fail loud if it drops below 2*rcut + 1 sigma, so a mis-sized box cannot silently
+# couple the slab to its periodic image.
+if "$(v_Lz-v_tslab) < $(2.0*v_rcut+1.0)" then "print 'ERROR: vapour gap (Lz-tslab) < 2*rcut+1 -> slab sees its image'" "quit 1"
+
+# ---- system: long p p p box, ONE LJ type, central FCC slab + vapour on both sides ----
+units      lj
+atom_style atomic
+boundary   p p p
+region     sim block 0 ${Lx} 0 ${Ly} 0 ${Lz} units box
+create_box 1 sim
+
+# liquid slab (central band in z, seeded at rho_l)
+lattice      fcc ${rho_l}
+region       liquid block INF INF INF INF ${zlo_s} ${zhi_s} units box
+create_atoms 1 region liquid
+
+# vapour on both sides (lower-density lattice, seeded at rho_v)
+lattice      fcc ${rho_v}
+region       vapbot block INF INF INF INF 0.0 ${zlo_s} units box
+region       vaptop block INF INF INF INF ${zhi_s} ${Lz} units box
+create_atoms 1 region vapbot
+create_atoms 1 region vaptop
+
+mass  1 1.0
+group fluid type 1
+
+# ---- interactions. shift/tail = LAMMPS defaults (both off); stated for the record.
+#      tail no: the homogeneous tail correction is invalid across an L-V interface
+#      (and cancels from gamma = Pzz - (Pxx+Pyy)/2 anyway). The rcut knob is the
+#      surface-tension knob, so the cutoff is the literal pair_style cutoff. ----
+pair_style  lj/cut ${rcut}
+pair_modify shift no tail no
+pair_coeff  1 1 1.0 1.0 ${rcut}
+
+neighbor     0.3 bin
+neigh_modify delay 0 every 1 check yes
+thermo       1000
+thermo_style custom step temp pe press pxx pyy pzz   # pxx/pyy/pzz let a run watch gamma converge
+
+# relax any liquid/vapour seed overlaps before dynamics (robust to the density knobs)
+minimize 1.0e-4 1.0e-6 1000 10000
+
+# zero the centre-of-mass momentum so the slab does not drift under production,
+# so the time-averaged z profile is not smeared by a drifting slab (no recenter needed)
+velocity all create ${T} ${seed} mom yes rot no dist gaussian
+timestep ${dt}
+
+# record the realised box + parameters for the analysis scripts (no hardwired dims)
+print "Lx $(lx)"      file   ${outdir}/slab_params.txt
+print "Ly $(ly)"      append ${outdir}/slab_params.txt
+print "Lz $(lz)"      append ${outdir}/slab_params.txt
+print "tslab ${tslab}" append ${outdir}/slab_params.txt
+print "rho_l ${rho_l}" append ${outdir}/slab_params.txt
+print "rho_v ${rho_v}" append ${outdir}/slab_params.txt
+print "rcut ${rcut}"   append ${outdir}/slab_params.txt
+print "T ${T}"         append ${outdir}/slab_params.txt
+print "seed ${seed}"   append ${outdir}/slab_params.txt
+print "bin ${bin}"     append ${outdir}/slab_params.txt
+# run metadata, so --ensemble can reject a mixed/stale set of replicas (a live short
+# run averaged in with the reference would otherwise bias the width silently)
+print "nequil ${nequil}"     append ${outdir}/slab_params.txt
+print "nprod ${nprod}"       append ${outdir}/slab_params.txt
+print "dt ${dt}"             append ${outdir}/slab_params.txt
+print "tdamp ${tdamp}"       append ${outdir}/slab_params.txt
+print "localstress ${localstress}" append ${outdir}/slab_params.txt
+print "dump ${dump}"         append ${outdir}/slab_params.txt
+
+# ---- equilibration (Nose-Hoover NVT), then start production from step 0 ----
+fix nvtall all nvt temp ${T} ${T} ${tdamp}
+run ${nequil}
+unfix nvtall
+reset_timestep 0
+
+# ---- production observables (defined AFTER equilibration so they sample production only) ----
+# guard: the ave/chunk window below needs nprod >= 100 (else nrep = 0 -> no profile)
+if "${nprod} < 100" then "print 'ERROR: nprod must be >= 100 for the z-profile ave/chunk output'" "quit 1"
+variable nb    equal round(v_Lz/v_bin)
+variable dz    equal v_Lz/v_nb
+variable nrep  equal floor(v_nprod/100)         # ave/chunk: samples per block
+variable nfreq equal 100*v_nrep                 # averaging window (<= nprod for nprod >= 100)
+compute cbinZ fluid chunk/atom bin/1d z lower ${dz} units box   # bin/1d may add one float round-up bin past Lz; the analyser drops z>=Lz
+
+# number-density profile rho(z)
+fix frho fluid ave/chunk 100 ${nrep} ${nfreq} cbinZ density/number file ${outdir}/slab_density.profile
+
+# diagonal stress components per bin (virial + kinetic, each summed; norm none).
+# The analyser combines them, divides by bin volume, and integrates for gamma.
+if "${localstress} > 0" then &
+  "compute virial fluid stress/atom NULL pair" &
+  "compute kinetic fluid stress/atom NULL ke" &
+  "fix fpress fluid ave/chunk 100 ${nrep} ${nfreq} cbinZ c_virial[1] c_virial[2] c_virial[3] c_kinetic[1] c_kinetic[2] c_kinetic[3] norm none file ${outdir}/slab_stress.profile"
+
+# optional orientation/intrinsic trajectory (production only; element name is for viewer colour only)
+if "${dump} > 0" then &
+  "dump dvmd fluid xyz 1000 ${outdir}/slab_traj.xyz" &
+  "dump_modify dvmd element Ar sort id"
+
+# ---- production (Nose-Hoover NVT at the target T; COM momentum zeroed above) ----
+fix nvtprod all nvt temp ${T} ${T} ${tdamp}
+run ${nprod}

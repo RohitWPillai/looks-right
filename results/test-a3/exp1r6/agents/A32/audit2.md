@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The new run is the original run with the bin width changed back to the 0.1 σ default (same seed 11, same steps), and at that width the near-wall layering shows clearly, so the flat profile in the original came from the 1.0 σ bins and not from the liquid.
+evidence: new/command.txt is `-var binw 0.1 -var seed 11`; original/command.txt is `-var binw 1.0 -var seed 11`. new/day1_density.profile has 238 bins of 0.1 σ. The first wall peak is 1.481 at z≈3.25 and the second is 1.463 at z≈20.56, with dips to 0.367 and 0.374 and peaks shrinking inward (0.976 and 0.969, then 0.827 and 0.809), around a flat bulk of 0.71–0.74. new/analysis.out gives the near-wall peak as 1.481 against bulk 0.725, a contrast of 2.04x, compared with 1.02x in the original. new/log.lammps shows no errors over 20000 equilibration and 50000 production steps with 5840 atoms.

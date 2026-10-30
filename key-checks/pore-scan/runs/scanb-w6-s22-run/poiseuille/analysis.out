@@ -1,0 +1,7 @@
+
+[6] LOCAL VISCOSITY  (measured pore width w = 6.00 sigma, WIDE)
+    in-pore density: mean 0.836, pore-centre 0.757 (target rho* = 0.8)
+    parabola fit -> eta(z) plateau (mid-pore) = 2.462
+    -> compare to the single bulk viscosity from Day-1's sheared channel;
+       both are slightly above the unconfined bulk LJ value eta_0 ~ 2.13 (near-wall layering).
+    plot -> poiseuille_w6.png

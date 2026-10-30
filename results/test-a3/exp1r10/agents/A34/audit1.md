@@ -1,0 +1,4 @@
+verdict: untrusted
+run: none
+cause: The shear stress leaves out the kinetic momentum flux (`stress/atom NULL pair`; contrary to the input's comment, shear streaming does not contaminate p_xz), which on my rough estimate makes eta about 5–10% too low; the hard-coded height 18.918 lowers |pxz| a further 6%, the fluid sits at T≈1.08–1.11 instead of 1.0, and no index variable can change any of this.
+evidence: viscosity.in:49,56 (`NULL pair`; Vf=lx*ly*18.918 against a 17.811 gap and an occupied fluid width of about 18.1 σ, 2.98–21.08 in day1_vx.profile; the localstress check was never run); analysis.out gives eta=1.194, pxz=-0.0652, shear rate 0.0546 and T(z) 1.08–1.13; day1_viscosity.png shows sample scatter about 0.05 over 500 samples, so the standard error is about 0.0022 (3.4%), smaller than the biases; log.lammps shows temp still rising from 0.86 to 0.97 over the first 20000 production steps.

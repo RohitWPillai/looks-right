@@ -1,0 +1,4 @@
+verdict: trusted
+run: none
+cause: The flow is linear, gentle and steady, and the stress average settled early. The fluid runs about 10% hot (T≈1.10 rather than 1.0), but at this density that should shift the viscosity by only a few percent, which is no more than the run's own scatter, so no rerun is worth it.
+evidence: analysis.out gives shear rate 0.0546 with R²=0.999, pxz −0.0652 and eta 1.194; day1_vx.profile is linear from −0.47 to +0.46 against walls at ±0.5, so slip is small; the stress running mean in day1_viscosity.png is flat at −0.065 from sample ~100 of 500; the scatter in day1_stress.dat (samples spread ±0.05 over 500 points) puts the run-to-run error near 3–5%; day1_KEz.profile and the T(z) panel show T 1.08–1.11 with only a ~0.02 hump; log.lammps thermo temperature levels off at ~0.96 by production step 20000.

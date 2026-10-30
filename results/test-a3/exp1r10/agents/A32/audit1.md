@@ -1,0 +1,4 @@
+verdict: untrusted
+run: binw=0.1
+cause: The command line overrode the bin width to 1.0 σ (the input's default is 0.1 σ, and its comment says coarsening washes out the layers), so each bin is about one layer spacing wide and averages the near-wall peaks and troughs away; the "no layering" result is caused by the bin width and does not show the liquid's actual structure.
+evidence: command.txt has `-var binw 1.0 -var seed 11`; density.in:22 has `binw index 0.1 … 0.1 resolves the near-wall layers; coarsen to wash them out`; day1_density.profile has 24 bins of about 0.99 σ, with bulk at 0.722–0.727 (scatter about ±0.003) and wall-adjacent bins at only 0.718/0.736 and 0.733/0.715; analysis.out reports a layering contrast of 1.02x and concludes "no layering left"; at 0.1 σ bins, contact peaks for an LJ liquid at T* 1.0 are typically well above bulk, far beyond the ±0.003 scatter.

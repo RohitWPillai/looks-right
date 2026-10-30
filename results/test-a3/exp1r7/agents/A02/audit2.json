@@ -1,0 +1,1 @@
+{"type": "result", "subtype": "success", "is_error": false, "num_turns": 13, "duration_ms": 48981, "total_cost_usd": 0.2436712, "terminal_reason": "completed", "models": ["claude-opus-5-5"], "usage": {"input_tokens": 16, "cache_creation_input_tokens": 17622, "cache_read_input_tokens": 90956, "output_tokens": 4222, "output_tokens_details": {"thinking_tokens": 2602}}}

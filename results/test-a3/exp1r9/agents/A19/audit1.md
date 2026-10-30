@@ -1,0 +1,4 @@
+verdict: trusted
+run: none
+cause: The run reached steady state (heat in and out balance within 1%, the fluid-interior T(z) is linear, and system temperature levels off during production); the 1.5x gap between G_bot and G_top is about twice the estimated ~10–15% run-to-run scatter and fits conductance rising with wall temperature (1.3 vs 0.9), so a new seed would not change the verdict.
+evidence: analysis.out: G_bot=0.623 (dT=0.078) and G_top=0.407 (dT=0.118); J=0.0486 / 0.0481; 14.70 / 14.55 heat per unit time, 1.0% imbalance; dT/dz=-0.0107 (R²=0.972). day1_heat.dat: bottom bath delivers 14.5 then 14.6 per tau in the two halves of production; the top bath's 11.2 then 16.9 is stored-energy noise, matching the thermo T rising 0.92→0.94 and falling back. log.lammps: 40000 equilibration plus 40000 production steps, thermo T flat at ~0.93±0.01 through production. day1_Tz.profile: smooth interior profile from 1.196 to 1.033 at 0.5σ bins, wall bins at 1.29 and 0.90–0.91.

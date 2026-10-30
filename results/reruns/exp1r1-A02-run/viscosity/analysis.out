@@ -1,0 +1,10 @@
+
+Sheet 3: viscosity
+    central shear rate dvx/dz = +0.0538  (R^2=1.000)
+    mean shear stress pxz = -0.0615
+    viscosity eta = |pxz| / (dvx/dz) ~ 1.143
+    (single-run values vary with the seed and the run length.)
+    fluid temperature T(z): walls ~1.08 / 1.11, centre ~1.13
+    (flat under gentle shear; a hot-centre hump means viscous heating ->
+     the channel is no longer isothermal, so a single eta no longer describes it.)
+    plot -> day1_viscosity.png

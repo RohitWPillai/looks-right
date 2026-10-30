@@ -1,0 +1,4 @@
+verdict: untrusted
+run: nequil=80000
+cause: The fluid was still warming toward the wall temperature during the first half of production, so the time-averaged profile mixes in a colder, more strongly layered liquid instead of being the T*=1.0 profile.
+evidence: log.lammps: thermo temp counts all 5840 atoms, including the 960 frozen anchor atoms, so its plateau is 1.0×4880/5840 ≈ 0.836. It climbed 0.59→0.67 during equilibration and 0.67→0.83 over production steps 0–25000, then held at about 0.82–0.85 for steps 25000–50000 (fluid T ≈ 0.80 at production start). PE rose −23.94→−23.80 over the same stretch. density.in averages one block over all 50000 production steps (ave/chunk 100 500 50000). day1_density.profile: wall peaks 1.481/1.463, bulk about 0.725 with bin scatter about ±0.01. A bias from the lower temperature of a few percent of the peak (roughly 0.03–0.05) exceeds that scatter. The total of 130000 steps is within 4×70000.

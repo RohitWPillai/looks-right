@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The new run used the input's full 40000-step equilibration and reached steady state (heat in and heat out now agree within 1%, against 53% before). Its 1.5x gap between the two walls is expected for walls held at different temperatures, which is why the purpose asks for each wall separately; without replica seeds that gap can't be shown to be under-resolution.
+evidence: new/command.txt has `-var nequil 40000 -var seed 11`, and new/log.lammps shows `run 40000` twice with 0 dangerous builds and a stable production temperature of about 0.91–0.96. new/analysis.out reports 14.70 heat in versus 14.55 out (1.0% imbalance), J_bot=0.0486 against J_top=0.0481, an interior-gradient R^2 of 0.972, G_bot=0.623 (dT=0.078) and G_top=0.407 (dT=0.118), with no steady-state warning. original/analysis.out reports a 53.3% imbalance and G_bot=0.302, G_top=0.536.

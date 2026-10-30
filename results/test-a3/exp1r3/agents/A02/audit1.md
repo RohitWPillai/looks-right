@@ -1,0 +1,4 @@
+verdict: untrusted
+run: vwall=0.5 nprod=200000
+cause: The command line raised the wall speed to vwall=3.0, six times the input's default of 0.5. Viscous heating at that speed brought the fluid to about 2–3.8 instead of T*=1.0 and left a hot hump in the centre, so the eta of about 0.98 belongs to a hotter liquid with no single temperature, not the T*=1.0 liquid. The default wall speed cuts the heating about 36-fold (it scales with shear rate squared), and the longer production run makes up for the weaker stress signal while staying within four times the original steps.
+evidence: command.txt (-var vwall 3.0, against the default of 0.5 in viscosity.in); analysis.out (dvx/dz=0.3532, pxz=-0.3455, eta≈0.978, T(z) about 2.19 and 2.15 at the walls and 3.18 at the centre); log.lammps (thermo Temp climbs from 1.32 to about 3.75 during equilibration and stays about 3.73–3.85 through production).

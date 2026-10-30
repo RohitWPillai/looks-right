@@ -1,0 +1,4 @@
+verdict: untrusted
+use: neither
+cause: The longer equilibration fixed the cold start, but at steady state the fluid sits at T* 1.18, not 1.0, so the new b ≈ 2.1σ is the slip length of a fluid heated by the shear, not of the liquid at T* 1.0; the original b ≈ 4.15σ also mixes in the cold-start transient.
+evidence: In new/log.lammps the 120,000-step equilibration levels off near thermo temp 1.0 (PE ≈ −23.63) by about step 100,000, and production stays flat throughout (temp 0.98–1.03, PE −23.60 to −23.67); new/analysis.out gives shear rate 0.0454 against the no-slip 0.0561, b = 2.108σ (R²=1.000), and fluid temperature 1.18; new/day1_T.dat gives 1.18384 over the full window, which matches the log once the walls' imposed motion is counted (960 anchor atoms moving at 0.5 with no thermal motion, 960 bath atoms at T 1.0, 3920 fluid atoms → fluid ≈ 1.19); original/analysis.out gives b = 4.148σ and fluid T 1.08, with the shear rate 0.0383 biased by the warming transient.

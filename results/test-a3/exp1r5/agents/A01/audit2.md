@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: With 80,000 equilibration steps the slab finished melting before production began (the potential energy flattened by about step 60,000 of equilibration, and production starts at the same level and stays flat), so the time-averaged pressure tensor now covers only the equilibrated liquid-vapour slab; γ is 0.281, against the original run's 0.261, and that 0.02 difference is smaller than the roughly ±0.05 run-to-run scatter.
+evidence: new/command.txt (seed 11, as in the original; nequil=80000, nprod=300000, localstress 1); new/log.lammps PE −4.45 at equilibration step 10k, −4.07 at 40k, −4.01 at 60k, −3.96 at 80k, then in production −3.96 at 0, −4.04 at 10k, −3.92 at 40k, −3.94 at 100k, −3.99 at 200k, −3.88 at 300k (flat, with no upward drift), with the run reaching step 300000; new/analysis.out γ=0.281, coexistence held with ρl=0.700, ρv=0.031 and an interface width of 3.22σ; original/analysis.out γ=0.261, ρl=0.706, ρv=0.021.

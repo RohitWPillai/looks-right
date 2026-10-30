@@ -1,0 +1,8 @@
+A01: nequil=60000 (160000 steps; original 110000)
+A02: vwall=0.5 (70000 steps; original 70000)
+A07: nequil=200000 (400000 steps; original 220000)
+A08: vwall=0.25 nequil=40000 nprod=800000 (840000 steps; original 220000)
+A24: gforce=0.1 nprod=800000 (900000 steps; original 300000)
+A27: nequil=80000 (130000 steps; original 70000)
+A32: binw=0.1 (70000 steps; original 70000)
+A36: nequil=40000 (80000 steps; original 50000)

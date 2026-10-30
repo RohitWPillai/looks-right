@@ -1,0 +1,4 @@
+verdict: trusted
+run: none
+cause: The run reached steady state, the heat in and out of the walls balances and the fluid-interior T(z) is linear, so each wall's G is a valid steady-state value; the 1.5x hot/cold gap is far larger than the scatter (my estimate is about 5–10%, from one run and no replicas) and is expected because G depends on T, so it is not an under-resolved jump.
+evidence: analysis.out gives G_bot=0.623 (dT=0.078, J=0.0486) and G_top=0.407 (dT=0.118, J=0.0481), hot/cold bath heat 14.70/14.55 per unit time (1.0% imbalance) and interior dT/dz=-0.0107 with R²=0.972; in log.lammps, temperature levels off at ~0.91 by step ~30000 of the 40000 equilibration steps and stays at 0.92–0.95 through production; in day1_Tz.profile, wall bins read 1.29–1.30 and 0.897–0.906 (baths are 1.3/0.9) and the interior falls smoothly from 1.196 to 1.033; in day1_heat.dat, totals at step 40000 are -2910/+2801, and the hot-side quarter slopes stay within ±25% of their mean.

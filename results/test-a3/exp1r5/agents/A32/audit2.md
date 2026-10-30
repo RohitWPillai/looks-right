@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The new run uses 0.1σ bins, which resolve the layering the 1.0σ bins averaged away: clear oscillating layers at both walls with a first peak about 2x the bulk density, far larger than the roughly 0.01 scatter between bulk bins.
+evidence: new/command.txt `-var binw 0.1 -var seed 11`; new/day1_density.profile has 238 bins of 0.100σ, first-layer peaks 1.481 at z=3.25 and 1.463 at z=20.56, dips near 0.37, further peaks at 0.976/0.969 and 0.827/0.808, and a bulk of 0.71–0.74 from z≈7 to 17; new/analysis.out gives rho_bulk ~0.725, peak 1.481 (2.04x) against 1.02x in original/; new/log.lammps shows no warnings, and its all-atom Temp rises 0.67→~0.83 over the first half of production and then holds (that plateau fits walls at 1.0 once the frozen anchor atoms are counted), so early sampling was slightly cool, but that cannot remove 2x layering that appears matching at both walls.

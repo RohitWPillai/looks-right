@@ -1,0 +1,4 @@
+verdict: untrusted
+run: vwall=0.5
+cause: At the wall speed of 3.0 (set on the command line), viscous heating raised the fluid temperature to about 2.2–3.2 instead of T* 1.0, so the reported η ≈ 0.98 is the viscosity of a much hotter, non-isothermal fluid; the input's gentle default of 0.5 cuts the heating about 36-fold, which should keep the fluid near T* 1.0, and the η it gives (roughly 2 for an LJ liquid near ρ 0.8 at T* 1) should differ from 0.98 by far more than the run-to-run scatter.
+evidence: command.txt (-var vwall 3.0 overrides the default 0.5 in viscosity.in:31); analysis.out (dvx/dz = 0.3532, pxz = -0.3455, η ≈ 0.978, peculiar T(z) walls ~2.19/2.15 and centre ~3.18, a hot-centre hump); log.lammps (thermo temp rises from 1.32 to about 3.8 during equilibration and stays there through production, steps 0–50000).

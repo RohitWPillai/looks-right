@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The original run's strong Langevin friction (tdamp=0.5) slowed the fluid and pushed the mid-pore viscosity up to 2.528, but the new run uses ten times weaker damping and gets 2.104, which matches bulk LJ (about 2.13) at a pore-centre density of 0.791 while holding T* near 1.0, so the new run gives the fluid's own local viscosity.
+evidence: original/analysis.out gives a plateau of 2.528 and new/analysis.out gives 2.104, against bulk 2.13; the two pore-centre densities are 0.790 and 0.791, and the 20% shift between runs is far larger than the few-percent fit scatter; original/command.txt and new/command.txt both use seed 11 and differ only in `-var tdamp 5.0`, and shared_setup.lmp defaults tdamp to 0.5; in new/log.lammps c_Tprof stays between about 0.98 and 1.04 during production, the run finishes all 200000 steps with 4097 atoms and no lost atoms, rho_acc=0.7999, and new/poiseuille_w10.params.txt gives w_meas=10.

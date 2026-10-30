@@ -1,0 +1,13 @@
+
+Sheet 2: slip length
+    central shear rate dvx/dz = +0.0539  (R^2=1.000)
+    no-slip reference 2*vwall/h = +0.0526  (slope if the liquid
+      stuck to the walls; slip makes the measured slope smaller)
+    fluid temperature = 1.12  (set point 1.0)
+    slip length b ~ -0.237 sigma  (symmetric walls -> both equal),
+      measured to the geometric wall face (z=2.40/21.41).
+    -> b < 0: the central slope is steeper than no-slip, so the effective no-slip
+       plane sits ~0.24 sigma inside the geometric wall face (e.g. a strongly-
+       wetting wall pinning the first layer). |b| is below the ~sigma interface,
+       so read the sign with care.
+    plot -> day1_slip.png

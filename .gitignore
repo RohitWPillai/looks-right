@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.DS_Store
+results/reruns.txt
+new-results/
+
+# local working logs, never published
+.agent-run-log.txt

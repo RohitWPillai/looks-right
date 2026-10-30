@@ -1,0 +1,4 @@
+verdict: trusted
+run: none
+cause: The 0.1σ bins clearly resolve symmetric layering at both walls (about three layers, roughly 2x contrast) around a flat bulk; the fluid was still warming during the first ~40% of production, but that should shift the peak by only a few percent, about the size of the wall-to-wall scatter, so a longer equilibration would not change whether the profile serves the purpose.
+evidence: analysis.out (rho_bulk ~0.725, peak 1.481, contrast 2.04x); day1_density.profile (bottom/top peaks 1.481/1.463, second layers 0.976/0.969, bulk 0.70–0.74 over z≈7–17, 3920 fluid atoms in 238 bins of 0.100σ); log.lammps (thermo Temp climbs from 0.67 to a ~0.83 plateau by production step ~22000, which matches T*=1.0 for the 4880 mobile atoms out of 5840, since the 960 pinned anchor atoms count at zero; 0 dangerous builds); density.in/shared_setup.lmp (binw=0.1, nequil=20000, nprod=50000, isothermal Langevin walls at 1.0).

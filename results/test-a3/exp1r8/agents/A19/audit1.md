@@ -1,0 +1,4 @@
+verdict: trusted
+run: none
+cause: Heat in and heat out balance and the temperature profile is smooth and linear, so the run reached steady state; the 1.5x gap between the walls' G comes from their temperature jumps, not from noise, and fits conductance rising with temperature, so a replica or longer run would only move each G by about its ~12% scatter.
+evidence: analysis.out gives G_bot=0.623 (dT=0.078) and G_top=0.407 (dT=0.118), with J=0.0486/0.0481, a 1.0% heat imbalance and an interior fit R²=0.972; in log.lammps the mean fluid T levels off at ~0.93 before production ends; day1_Tz.profile has wall baths at 1.294/0.906 and a smooth interior profile from 1.196 to 1.033 (bin noise ~0.005); day1_heat.dat rates per 25 tau block vary from 123 to 532, giving ~12% standard error on J, which is shared by both walls and so cancels in the G_bot/G_top ratio.

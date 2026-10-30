@@ -1,0 +1,4 @@
+verdict: trusted
+run: none
+cause: The fluid stays at T* = 1.0 and at steady state, vx(z) is a clean no-slip parabola, and the eta(z) curve sits on one flat plateau that only ripples with the wall layering, which is the expected wide-pore result; any remaining bias, such as mild shear thinning at the wall shear rate of about 0.07 or the small top/bottom difference, is a few percent, about the size of the run-to-run scatter.
+evidence: The analysis output and params file give w_meas = 10.00, in-pore density 0.820 (0.790 at the centre), and an eta plateau of 2.528. The figure (`poiseuille_w10.png`) shows a parabolic vx peaking near 0.155 and falling to about 0 at both walls, and eta(z) of about 2.45–2.65 across both halves. `log.lammps` shows production c_Tprof of 0.97–1.06 around 1.0 with a steady PotEng of about -32.24, the seeding check passed (rho_acc 0.79995), and there are no errors or dangerous neighbour builds.

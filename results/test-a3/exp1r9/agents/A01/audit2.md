@@ -1,0 +1,4 @@
+verdict: trusted
+use: new
+cause: The new run (100000 equilibration and 300000 production steps) finished relaxing during equilibration, and its production energy holds steady with no trend, so its gamma=0.343 has no drift bias, while the original's gamma=0.261 averaged in a slab that was still relaxing and sits low by about 0.08, more than the single-run scatter.
+evidence: new/command.txt (nequil 100000, nprod 300000, seed 11); new/log.lammps equilibration pe -4.45 → -3.96 by step 100000, then production pe steady at about -3.92±0.05 from step 10000 to 300000 with T about 0.85; new/analysis.out gamma=0.343, rho_l=0.698, rho_v=0.031, width 3.36; new/slab_pressure.png shows two clean, matching interfaces with flat vapour P_N≈P_T≈0.022 and inside-slab noise within ±0.02; original/analysis.out gamma=0.261 from a drifting production (pe -4.45 → -4.05).

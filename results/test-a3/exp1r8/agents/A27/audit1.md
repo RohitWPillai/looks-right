@@ -1,0 +1,4 @@
+verdict: trusted
+run: none
+cause: With 0.1σ bins the profile clearly resolves the wall layers (about four damped layers at each wall) and a flat bulk, and it is mirror-symmetric; the fluid was still warming up in early production, but that probably biases the peak height only by about 2%, which is not much more than the ~1% scatter and does not change the layering result.
+evidence: day1_density.profile has bins 0.1σ wide and peaks of 1.481 at z=3.25 and 1.463 at z=20.56, so the two walls differ by 1.2%; the bulk is flat at ~0.72±0.01 across z=7–17; analysis.out reports rho_bulk 0.725, peak 1.481 and a contrast of 2.04x; in log.lammps the whole-system thermo temp rises from 0.67 to ~0.83 by production step 25k and then holds, which works out to about 1.0 for the fluid (×5840/4880, since the 960 anchor atoms are held still), so the production-averaged fluid T is ~0.96 instead of 1.0; no atoms were lost and command.txt changes only the seed (11).
