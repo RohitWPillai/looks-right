@@ -1,0 +1,27 @@
+{
+  "title": "Looks Right: an open test of AI agents' scientific judgement in atomistic simulation",
+  "upload_type": "software",
+  "description": "<p>An open test of whether an AI agent can tell a trustworthy simulation result from one that looks right and is wrong. The first suite, Polywater, has 12 finished molecular dynamics runs from the NEMD 2026 summer school course, each run with the course's settings and with one setting deliberately changed, scored against an answer key fixed in advance. One experiment is released: Claude Opus 5.5 as the judge (the Auditor), ten attempts. The release holds the runs, the Auditor's instructions, every answer, the key, the scores and the scoring code.</p><p>Licences: code (tools/, tests/, scripts in key-checks/) MIT; data, text and figures CC BY 4.0; course files under the course repository's licence (see LICENSE, LICENSE-data, LICENSE-course and COURSE-FILES.md).</p>",
+  "creators": [
+    {
+      "name": "Pillai, Rohit",
+      "affiliation": "University of Edinburgh"
+    }
+  ],
+  "license": "cc-by-4.0",
+  "keywords": [
+    "AI agents",
+    "molecular dynamics",
+    "evaluation",
+    "scientific judgement",
+    "human oversight",
+    "LAMMPS"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/RohitWPillai/looks-right",
+      "relation": "isSupplementTo",
+      "resource_type": "software"
+    }
+  ]
+}

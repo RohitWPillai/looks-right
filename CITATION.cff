@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this test bed, please cite it as below."
 title: "Looks Right: an open test of AI agents' scientific judgement in atomistic simulation"
-version: 0.2.1
+version: 0.2.2
 date-released: 2026-10-31
 authors:
   - family-names: Pillai
