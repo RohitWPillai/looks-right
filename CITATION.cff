@@ -3,6 +3,7 @@ message: "If you use this test bed, please cite it as below."
 title: "Looks Right: an open test of AI agents' scientific judgement in atomistic simulation"
 version: 0.2.2
 date-released: 2026-10-31
+doi: 10.5281/zenodo.23835984
 authors:
   - family-names: Pillai
     given-names: Rohit
