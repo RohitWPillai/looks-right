@@ -1,4 +1,4 @@
-# Looks Right: Polywater
+# Looks Right: an open test of AI agents' scientific judgement in atomistic simulation
 
 This repository tests whether an AI agent can tell a trustworthy simulation result from one that looks right and is not. Before a simulation's
 number is used, a scientist must judge it: did the run go on long enough, is the number the quantity it is reported
@@ -16,7 +16,7 @@ narrow-pore run (a channel only four atom widths across), which the key rejects 
 on two runs changed from one attempt to the next, with the same instructions and files (finding 4). The course's analysis scripts print warnings on some of the broken runs, so part of the Auditor's margin over
 accepting every run may come from reading those warnings.
 
-Version 0.2.0, 31 October 2026. Repository: https://github.com/RohitWPillai/looks-right.
+Version 0.2.1, 31 October 2026. Repository: https://github.com/RohitWPillai/looks-right.
 
 ## The test
 
@@ -132,5 +132,5 @@ repository's licence (MIT for code and inputs, `LICENSE-course`; CC BY 4.0 for h
 attribution to the NEMD Summer School 2026 organisers and contributors,
 https://github.com/Non-Equilibrium-Molecular-Dynamics/NEMD-Summer-School-2026.
 
-To cite: Rohit Pillai, Looks Right: Polywater, version 0.2.0 (2026), https://github.com/RohitWPillai/looks-right
+To cite: Rohit Pillai, Looks Right: an open test of AI agents' scientific judgement in atomistic simulation, version 0.2.1 (2026), https://github.com/RohitWPillai/looks-right
 (`CITATION.cff`). Contact: Rohit Pillai, University of Edinburgh, https://rohitwpillai.github.io.

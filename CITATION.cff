@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this test bed, please cite it as below."
-title: "Looks Right: Polywater, an open test of whether AI agents can tell trustworthy molecular dynamics results from untrustworthy ones"
-version: 0.2.0
+title: "Looks Right: an open test of AI agents' scientific judgement in atomistic simulation"
+version: 0.2.1
 date-released: 2026-10-31
 authors:
   - family-names: Pillai

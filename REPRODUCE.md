@@ -1,4 +1,4 @@
-# Reproducing Looks Right: Polywater
+# How to reproduce Looks Right
 
 This file is for a scientist who wants to check or rerun the work. Read `README.md` first; it
 defines the Auditor, the runs, the looks, the attempts, the experiment (Exp 1, ten attempts) and the answer key. Run every
